@@ -1,0 +1,8 @@
+ROUTE_NUMBER_COLUMN = "routenumbe"
+STOP_NUMBER_COLUMN = "stopnumber"
+RUN_NUMBER_COLUMN = "runnumber"
+STOP_SEQUENCE_NUMBER_COLUMN = "stopseqnum"
+ROUTES_COLUMN = "routes"
+X_COLUMN = "x"
+Y_COLUMN = "y"
+STOP_TITLE_COLUMN = "maptext"
