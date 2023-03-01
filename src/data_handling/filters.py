@@ -57,4 +57,4 @@ def __filter_by_run_number(route_data: DataFrame, run_num: str) -> None:
 
 
 def __filter_by_after_seq_num(route_data: DataFrame, seq_num: int) -> None:
-    route_data.drop(route_data[route_data[STOP_SEQUENCE_NUMBER_COLUMN] <= seq_num].index, inplace=True)
+    route_data.drop(route_data[route_data[STOP_SEQUENCE_NUMBER_COLUMN] < seq_num].index, inplace=True)
