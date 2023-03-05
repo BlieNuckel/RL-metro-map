@@ -20,3 +20,6 @@ class Stop:
             return False
 
         return self.id == __o.id
+
+    def __hash__(self):
+        return hash(self.id)

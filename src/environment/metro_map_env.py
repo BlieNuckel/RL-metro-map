@@ -27,13 +27,13 @@ class MetroMapEnv(gym.Env):
         super().__init__()
         self.action_space = gym.spaces.Discrete(6)
         spaces: dict[str, gym.spaces.Space] = {
-            "board": gym.spaces.Box(-np.inf, np.inf, (width, height), dtype=np.int32),
+            "board": gym.spaces.Box(-np.inf, np.inf, (width * height,), dtype=np.int64),
             "stops_remaining_curr": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
             "lines_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
             "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
             "num_of_consecutive_overlaps": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
-            "num_of_turns": gym.spaces.Box(0, np.inf, (turn_limits[1],), dtype=np.int32),
-            "max_turns": gym.spaces.Box(0, np.inf, (turn_limits[0],), dtype=np.int32),
+            "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
+            "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
             "curr_direction": gym.spaces.Discrete(8),
         }
         self.observation_space = gym.spaces.Dict(spaces)
@@ -103,19 +103,25 @@ class MetroMapEnv(gym.Env):
         if self.render_mode is None:
             return None
 
+        if self.render_mode == "human":
+            return None
+
+        if self.render_mode == "rgb_array":
+            return []
+
         return super().render()
 
     def __compile_observations(self) -> dict[str, Any]:
         observations: dict[str, Any] = {}
 
-        observations["board"] = self.grid.to_observation()
-        observations["stops_remaining_curr"] = self.stops_remaining_curr
-        observations["lines_remaining_all"] = self.lines_remaining_all
-        observations["stops_remaining_all"] = self.stops_remaining_all
-        observations["num_of_consecutive_overlaps"] = self.consecutive_overlaps
-        observations["num_of_turns"] = self.recent_turns.num_of_turns()
-        observations["max_turns"] = self.max_turns
-        observations["curr_direction"] = self.curr_direction
+        observations["board"] = np.array(self.grid.to_observation(), dtype=np.int64)
+        observations["stops_remaining_curr"] = np.array([self.stops_remaining_curr], dtype=np.int32)
+        observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int32)
+        observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int32)
+        observations["num_of_consecutive_overlaps"] = np.array([self.consecutive_overlaps], dtype=np.int32)
+        observations["num_of_turns"] = np.array([self.recent_turns.num_of_turns()], dtype=np.int32)
+        observations["max_turns"] = np.array([self.max_turns], dtype=np.int32)
+        observations["curr_direction"] = int(self.curr_direction)
 
         return observations
 
@@ -206,10 +212,14 @@ class MetroMapEnv(gym.Env):
         self.grid[self.curr_position] = stop_to_place
         stop_to_place.position = self.curr_position
 
-        is_stop_placed_adjacent = self.stop_adjacency_map.is_adjacent(stop_to_place.id, self.curr_position)
-        reward += score_funcs.stop_adjacency(is_stop_placed_adjacent)
+        is_stop_first = self.stop_adjacency_map.is_first(stop_to_place.id)
 
-        if is_stop_placed_adjacent:
+        if not is_stop_first:
+            is_stop_placed_adjacent = self.stop_adjacency_map.is_adjacent(stop_to_place.id, self.curr_position)
+            reward += score_funcs.stop_adjacency(is_stop_placed_adjacent)
+            self.__update_adjacency_map(stop_to_place)
+        else:
+            reward += score_funcs.stop_adjacency(is_stop_first)
             self.__update_adjacency_map(stop_to_place)
 
         reward += score_funcs.stop_distribution(self.steps_since_stop == self.stop_spacing)

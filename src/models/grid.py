@@ -1,6 +1,7 @@
 from typing import TypeVar, Generic
 from src.models import Coordinates2d
 from enum import Enum
+import numpy as np
 
 T = TypeVar("T")
 
@@ -15,10 +16,10 @@ class Grid(Generic[T]):
     def __init__(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
-        self.grid: list[list[T | None]] = [[None for _ in range(width)] for _ in range(height)]
+        self.grid: list[list[list[T | None]]] = [[[] for _ in range(width)] for _ in range(height)]
 
-    def to_observation(self) -> list[list[int]]:
-        return [[hash(x) for x in row] for row in self.grid]
+    def to_observation(self) -> list[int]:
+        return [hash(tuple(x)) for row in self.grid for x in row]
 
     def is_empty(self, position: tuple[int, int] | Coordinates2d) -> bool:
         if isinstance(position, tuple):
@@ -35,7 +36,10 @@ class Grid(Generic[T]):
 
         return position.x <= self.width - 1 and position.y <= self.height - 1
 
-    def __getitem__(self, key: tuple[int, int] | Coordinates2d) -> T | None:
+    def render(self) -> None:
+        pass
+
+    def __getitem__(self, key: tuple[int, int] | Coordinates2d) -> list[T | None]:
         assert (isinstance(key, tuple) and len(key) == 2) or isinstance(
             key, Coordinates2d
         ), "You must use 2 dimensional access with the grid, nothing else"
@@ -59,7 +63,7 @@ class Grid(Generic[T]):
         if not self.is_in_bounds(key):
             raise IndexError("Position outside of grid bounds")
 
-        self.grid[key.y][key.x] = value
+        self.grid[key.y][key.x].append(value)
 
     def __str__(self) -> str:
         return_str = ""
@@ -87,6 +91,9 @@ class Direction(Enum):
     @property
     def value(self) -> tuple[int, int]:
         return super().value
+
+    def __int__(self):
+        return self.list().index(self)
 
     def get_45_right(self) -> "Direction":
         return self.__get_angle_by_index(1)
