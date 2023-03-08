@@ -1,15 +1,16 @@
 import gymnasium as gym
 from gymnasium.core import RenderFrame
-from typing import SupportsFloat, Any
+from typing import SupportsFloat, Any, cast
 from src.models import Stop, Coordinates2d
 from src.models.grid import Direction, Grid
 from src.models.turn_queue import TurnQueue
 from src.models.stop_adjacency import StopAdjacency
-from src.environment import score_funcs
+from src.environment import score_funcs, random_options
 from src.utils.list import flat_map
-import numpy as np
 from collections import deque
+import numpy as np
 import math
+import cv2  # type: ignore
 
 
 class MetroMapEnv(gym.Env):
@@ -17,11 +18,11 @@ class MetroMapEnv(gym.Env):
         self,
         width: int,
         height: int,
-        lines: dict[str, deque[Stop]],
-        starting_positions: dict[str, tuple[Coordinates2d, Direction]],
-        stop_angle_mapping: dict[str, dict[str, float]],
-        turn_limits: tuple[int, int],
-        stop_spacing: int,
+        # lines: dict[str, deque[Stop]],
+        # starting_positions: dict[str, tuple[Coordinates2d, Direction]],
+        # stop_angle_mapping: dict[str, dict[str, float]],
+        # turn_limits: tuple[int, int],
+        # stop_spacing: int,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
@@ -39,12 +40,8 @@ class MetroMapEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(spaces)
         self.render_mode = render_mode
 
-        self.grid = Grid[str | Stop](width, height)
-        self.lines = lines
-        self.stop_spacing = stop_spacing
-        self.real_stop_angles = stop_angle_mapping
-        self.max_turns, self.steps_to_count_turns = turn_limits
-        self.starting_positions = starting_positions
+        self.grid_width = width
+        self.grid_height = height
 
     @property
     def stops_remaining_curr(self) -> int:
@@ -80,12 +77,58 @@ class MetroMapEnv(gym.Env):
             case _:
                 pass
 
+        if self.render_mode == "human":
+            img = self.grid.render(self.line_color_map)
+            cv2.imshow("a", img)
+            cv2.waitKey(1)
+
         return self.__compile_observations(), reward, terminated, truncated, info
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[dict[str, Any], dict[str, Any]]:
+        super().reset(seed=seed, options=options)
+
         info: dict[str, Any] = {}
+
+        # lines: dict[str, deque[Stop]],
+        # starting_positions: dict[str, tuple[Coordinates2d, Direction]],
+        # stop_angle_mapping: dict[str, dict[str, float]],
+        # turn_limits: tuple[int, int],
+        # stop_spacing: int,
+
+        if options is None:
+            env_data = random_options.generate_random_env_data(self.grid_width, self.grid_height)
+
+            self.grid = Grid[str | Stop](env_data.width, env_data.height)
+            self.lines = env_data.lines
+            self.stop_spacing = env_data.stop_spacing
+            self.real_stop_angles = env_data.stop_angle_mapping
+            self.max_turns, self.steps_to_count_turns = env_data.turn_limits
+            self.starting_positions = env_data.starting_positions
+            self.line_color_map = env_data.line_color_map
+        else:
+            assert all(
+                item in options.keys()
+                for item in [
+                    "lines",
+                    "stop_spacing",
+                    "stop_angle_mapping",
+                    "turn_limits",
+                    "starting_positions",
+                    "line_color_map",
+                    "grid_width",
+                    "grid_height",
+                ]
+            ), "You must pass an options dict containing: 'lines', 'stop_spacing', 'stop_angle_mapping', 'turn_limits', 'line_color_map', 'grid_width', 'grid_height' and 'starting_positions'"  # noqa: E501
+
+            self.grid = Grid[str | Stop](cast(int, options["grid_width"]), cast(int, options["grid_height"]))
+            self.lines = cast(dict[str, deque[Stop]], options["lines"])
+            self.stop_spacing = cast(int, options["stop_spacing"])
+            self.real_stop_angles = cast(dict[str, dict[str, float]], options["stop_angle_mapping"])
+            self.max_turns, self.steps_to_count_turns = cast(tuple[int, int], options["turn_limits"])
+            self.starting_positions = cast(dict[str, tuple[Coordinates2d, Direction]], options["starting_positions"])
+            self.line_color_map = cast(dict[str, tuple[int, int, int]], options["line_color_map"])
 
         self.steps_since_stop = 0
         self.consecutive_overlaps = 0
@@ -107,7 +150,7 @@ class MetroMapEnv(gym.Env):
             return None
 
         if self.render_mode == "rgb_array":
-            return []
+            return self.grid.render(self.line_color_map)  # type: ignore
 
         return super().render()
 
@@ -216,8 +259,10 @@ class MetroMapEnv(gym.Env):
 
         if not is_stop_first:
             is_stop_placed_adjacent = self.stop_adjacency_map.is_adjacent(stop_to_place.id, self.curr_position)
+            if is_stop_placed_adjacent:
+                self.__update_adjacency_map(stop_to_place)
+
             reward += score_funcs.stop_adjacency(is_stop_placed_adjacent)
-            self.__update_adjacency_map(stop_to_place)
         else:
             reward += score_funcs.stop_adjacency(is_stop_first)
             self.__update_adjacency_map(stop_to_place)

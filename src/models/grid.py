@@ -1,7 +1,9 @@
 from typing import TypeVar, Generic
-from src.models import Coordinates2d
+from src.models.coordinates2d import Coordinates2d
+from src.models.stop import Stop
 from enum import Enum
 import numpy as np
+import cv2  # type: ignore
 
 T = TypeVar("T")
 
@@ -36,8 +38,40 @@ class Grid(Generic[T]):
 
         return position.x <= self.width - 1 and position.y <= self.height - 1
 
-    def render(self) -> None:
-        pass
+    def render(self, color_map: dict[str, tuple[int, int, int]]) -> np.ndarray:
+
+        # cv2.imshow("a", self.img)
+        # cv2.waitKey(1)
+        img = np.zeros((self.height * 2, self.width * 2, 3), dtype="uint8")
+
+        for y, row in enumerate(self.grid):
+            for x, field in enumerate(row):
+                if len(field) == 0:
+                    continue
+
+                if isinstance(field[0], Stop):
+                    cv2.rectangle(
+                        img,
+                        (x * 2, y * 2),
+                        (x * 2 + 2, y * 2 + 2),
+                        (255, 255, 255),
+                        3,
+                    )
+                elif isinstance(field[0], str):
+                    try:
+                        cv2.rectangle(
+                            img,
+                            (x * 2, y * 2),
+                            (x * 2 + 2, y * 2 + 2),
+                            color_map[field[0]],
+                            3,
+                        )
+                    except KeyError:
+                        print(f"Field with value {field} has skipped rendering. No color value found.")
+                else:
+                    print(f"Non renderable grid item found: {field} at {(x, y)}. Implementation missing.")
+
+        return img
 
     def __getitem__(self, key: tuple[int, int] | Coordinates2d) -> list[T | None]:
         assert (isinstance(key, tuple) and len(key) == 2) or isinstance(
