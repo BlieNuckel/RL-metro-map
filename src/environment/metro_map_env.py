@@ -194,6 +194,9 @@ class MetroMapEnv(gym.Env):
 
         reward += score_funcs.line_overlap(self.consecutive_overlaps)
 
+        curr_line_start_point = self.starting_positions[self.curr_line][0]
+        reward += score_funcs.promote_spreading(self.curr_position.distance_to(curr_line_start_point))
+
         return (terminated, truncated, reward, info)
 
     def __turn_and_move(self, new_direction: Direction) -> tuple[bool, bool, float, dict[str, Any]]:

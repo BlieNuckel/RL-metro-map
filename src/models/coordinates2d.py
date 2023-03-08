@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Union
+import math
 
 
 @dataclass(frozen=True)
@@ -9,6 +10,9 @@ class Coordinates2d:
 
     def to_tuple(self) -> tuple[int, int]:
         return (self.x, self.y)
+
+    def distance_to(self, position: "Coordinates2d") -> float:
+        return math.sqrt((self.x - position.x) ** 2 + (self.y - position.y) ** 2)
 
     def __add__(self, value: Union[tuple[int, int], "Coordinates2d"]) -> "Coordinates2d":
         assert isinstance(value, tuple) or isinstance(value, Coordinates2d), (
