@@ -33,3 +33,6 @@ class Coordinates2d:
 
     def __hash__(self) -> int:
         return hash(self.x) ^ hash(self.y)
+
+    def __str__(self) -> str:
+        return str(self.to_tuple())

@@ -33,6 +33,9 @@ def minimize_turns(num_of_recent_turns: int) -> float:
 
 
 def promote_spreading(distance_from_start: float) -> float:
+    if distance_from_start <= 0:
+        return 0
+
     return _clamp_min(0, 5 * math.log10(distance_from_start) + 5)
 
 

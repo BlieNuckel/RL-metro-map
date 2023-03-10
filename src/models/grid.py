@@ -1,9 +1,11 @@
-from typing import TypeVar, Generic
 from src.models.coordinates2d import Coordinates2d
+from typing import TypeVar, Generic
+from src.exceptions import OutOfBoundsException
 from src.models.stop import Stop
 from enum import Enum
 import numpy as np
 import cv2  # type: ignore
+import hashlib
 
 T = TypeVar("T")
 
@@ -18,17 +20,34 @@ class Grid(Generic[T]):
     def __init__(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
-        self.grid: list[list[list[T | None]]] = [[[] for _ in range(width)] for _ in range(height)]
+        self.grid: list[list[list[T]]] = [[[] for _ in range(width)] for _ in range(height)]
 
     def to_observation(self) -> list[int]:
-        return [hash(tuple(x)) for row in self.grid for x in row]
+        observation_list = []
+
+        for row in self.grid:
+            for x in row:
+                if len(x) <= 0:
+                    observation_list.append(0)
+                    continue
+
+                string_to_hash = x[0]
+                if isinstance(x[0], Stop):
+                    string_to_hash = x[0].id  # type: ignore
+
+                hashed_string = int(hashlib.sha1(string_to_hash.encode("utf-8")).hexdigest(), 16) % (  # type:ignore
+                    10**8
+                )
+                observation_list.append(hashed_string)
+
+        return observation_list
 
     def is_empty(self, position: tuple[int, int] | Coordinates2d) -> bool:
         if isinstance(position, tuple):
             position = Coordinates2d(*position)
 
         if not self.is_in_bounds(position):
-            raise IndexError("Position outside of grid bounds")
+            raise OutOfBoundsException(position)
 
         return self[position] is None
 
@@ -36,7 +55,7 @@ class Grid(Generic[T]):
         if isinstance(position, tuple):
             position = Coordinates2d(*position)
 
-        return position.x <= self.width - 1 and position.y <= self.height - 1
+        return position.x < self.width and position.y < self.height
 
     def render(self, color_map: dict[str, tuple[int, int, int]]) -> np.ndarray:
 
@@ -73,7 +92,7 @@ class Grid(Generic[T]):
 
         return img
 
-    def __getitem__(self, key: tuple[int, int] | Coordinates2d) -> list[T | None]:
+    def __getitem__(self, key: tuple[int, int] | Coordinates2d) -> list[T]:
         assert (isinstance(key, tuple) and len(key) == 2) or isinstance(
             key, Coordinates2d
         ), "You must use 2 dimensional access with the grid, nothing else"
@@ -82,9 +101,16 @@ class Grid(Generic[T]):
             key = Coordinates2d(*key)
 
         if not self.is_in_bounds(key):
-            raise IndexError("Position outside of grid bounds")
+            raise OutOfBoundsException(key)
 
-        return self.grid[key.y][key.x]
+        try:
+            return self.grid[key.y][key.x]
+        except IndexError:
+            print("Index error occurred in grid, with following data:")
+            print(f"Position: {key}")
+            print(f"Out of bounds reported: {self.is_in_bounds(key)}")
+            print(f"Size is: {self.width}x{self.height}")
+            raise OutOfBoundsException(key)
 
     def __setitem__(self, key: tuple[int, int] | Coordinates2d, value: T):
         assert (isinstance(key, tuple) and len(key) == 2) or isinstance(
@@ -95,7 +121,7 @@ class Grid(Generic[T]):
             key = Coordinates2d(*key)
 
         if not self.is_in_bounds(key):
-            raise IndexError("Position outside of grid bounds")
+            raise OutOfBoundsException(key)
 
         self.grid[key.y][key.x].append(value)
 

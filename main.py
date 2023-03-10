@@ -1,5 +1,7 @@
 import os
-from stable_baselines3 import DQN
+from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.callbacks import EvalCallback
 from src.environment import MetroMapEnv
 
@@ -15,21 +17,28 @@ def main() -> None:
     os.makedirs(models_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    env = MetroMapEnv(width, height, "rgb_array")
-    env.reset()
+    env = MetroMapEnv(width, height, "human")
+    check_env(env)
 
-    eval_callback = EvalCallback(env, best_model_save_path=models_dir)
+    monitor = Monitor(env)  # type: ignore
+    monitor.reset()
 
-    model = DQN("MultiInputPolicy", env, verbose=0, tensorboard_log=log_dir, device="cuda")
+    # eval_callback = EvalCallback(monitor, best_model_save_path=models_dir, eval_freq=100, n_eval_episodes=1)
+
+    model = PPO("MultiInputPolicy", monitor, tensorboard_log=log_dir, device="cuda")
+
     model.learn(
-        callback=eval_callback,
+        # callback=eval_callback,
         total_timesteps=timesteps,
         reset_num_timesteps=False,
+        log_interval=2,
         tb_log_name=f"RewardFunctions_v{version}",
         progress_bar=True,
     )
 
-    env.close()
+    model.save(models_dir)
+
+    monitor.close()
 
 
 if __name__ == "__main__":

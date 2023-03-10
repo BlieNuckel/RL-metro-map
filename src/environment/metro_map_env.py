@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from typing import SupportsFloat, Any, cast
 from src.models import Stop, Coordinates2d
+from src.exceptions import OutOfBoundsException
 from src.models.grid import Direction, Grid
 from src.models.turn_queue import TurnQueue
 from src.models.stop_adjacency import StopAdjacency
@@ -28,13 +29,13 @@ class MetroMapEnv(gym.Env):
         super().__init__()
         self.action_space = gym.spaces.Discrete(6)
         spaces: dict[str, gym.spaces.Space] = {
-            "board": gym.spaces.Box(-np.inf, np.inf, (width * height,), dtype=np.int64),
-            "stops_remaining_curr": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
-            "lines_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
-            "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
-            "num_of_consecutive_overlaps": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
-            "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
-            "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int32),
+            "board": gym.spaces.Box(-np.inf, np.inf, (width * height,), dtype=np.int16),
+            "stops_remaining_curr": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "lines_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "num_of_consecutive_overlaps": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
         }
         self.observation_space = gym.spaces.Dict(spaces)
@@ -90,12 +91,6 @@ class MetroMapEnv(gym.Env):
         super().reset(seed=seed, options=options)
 
         info: dict[str, Any] = {}
-
-        # lines: dict[str, deque[Stop]],
-        # starting_positions: dict[str, tuple[Coordinates2d, Direction]],
-        # stop_angle_mapping: dict[str, dict[str, float]],
-        # turn_limits: tuple[int, int],
-        # stop_spacing: int,
 
         if options is None:
             env_data = random_options.generate_random_env_data(self.grid_width, self.grid_height)
@@ -157,13 +152,13 @@ class MetroMapEnv(gym.Env):
     def __compile_observations(self) -> dict[str, Any]:
         observations: dict[str, Any] = {}
 
-        observations["board"] = np.array(self.grid.to_observation(), dtype=np.int64)
-        observations["stops_remaining_curr"] = np.array([self.stops_remaining_curr], dtype=np.int32)
-        observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int32)
-        observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int32)
-        observations["num_of_consecutive_overlaps"] = np.array([self.consecutive_overlaps], dtype=np.int32)
-        observations["num_of_turns"] = np.array([self.recent_turns.num_of_turns()], dtype=np.int32)
-        observations["max_turns"] = np.array([self.max_turns], dtype=np.int32)
+        observations["board"] = np.array(self.grid.to_observation(), dtype=np.int16)
+        observations["stops_remaining_curr"] = np.array([self.stops_remaining_curr], dtype=np.int16)
+        observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int16)
+        observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int16)
+        observations["num_of_consecutive_overlaps"] = np.array([self.consecutive_overlaps], dtype=np.int16)
+        observations["num_of_turns"] = np.array([self.recent_turns.num_of_turns()], dtype=np.int16)
+        observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
 
         return observations
@@ -251,40 +246,46 @@ class MetroMapEnv(gym.Env):
             # If we're out of bounds return an immediate, high punishment and terminate
             return (terminated, truncated, reward, info)
 
-        if not self.grid.is_empty(self.curr_position):
-            reward += score_funcs.stop_overlap()
+        try:
+            if not self.grid.is_empty(self.curr_position):
+                reward += score_funcs.stop_overlap()
 
-        stop_to_place = self.lines[self.curr_line].popleft()
-        self.grid[self.curr_position] = stop_to_place
-        stop_to_place.position = self.curr_position
+            stop_to_place = self.lines[self.curr_line].popleft()
+            self.grid[self.curr_position] = stop_to_place
+            stop_to_place.position = self.curr_position
 
-        is_stop_first = self.stop_adjacency_map.is_first(stop_to_place.id)
+            is_stop_first = self.stop_adjacency_map.is_first(stop_to_place.id)
 
-        if not is_stop_first:
-            is_stop_placed_adjacent = self.stop_adjacency_map.is_adjacent(stop_to_place.id, self.curr_position)
-            if is_stop_placed_adjacent:
+            if not is_stop_first:
+                is_stop_placed_adjacent = self.stop_adjacency_map.is_adjacent(stop_to_place.id, self.curr_position)
+                if is_stop_placed_adjacent:
+                    self.__update_adjacency_map(stop_to_place)
+
+                reward += score_funcs.stop_adjacency(is_stop_placed_adjacent)
+            else:
+                reward += score_funcs.stop_adjacency(is_stop_first)
                 self.__update_adjacency_map(stop_to_place)
 
-            reward += score_funcs.stop_adjacency(is_stop_placed_adjacent)
-        else:
-            reward += score_funcs.stop_adjacency(is_stop_first)
-            self.__update_adjacency_map(stop_to_place)
+            reward += score_funcs.stop_distribution(self.steps_since_stop == self.stop_spacing)
+            self.steps_since_stop = 0
 
-        reward += score_funcs.stop_distribution(self.steps_since_stop == self.stop_spacing)
-        self.steps_since_stop = 0
+            reward += self.__score_relative_stop_positions(stop_to_place)
+            self.placed_stops.append(stop_to_place)
 
-        reward += self.__score_relative_stop_positions(stop_to_place)
-        self.placed_stops.append(stop_to_place)
+            if not self.__end_of_curr_line():
+                step_terminated, step_truncated, step_reward, step_info = self.__move_forward()
+                info.update(step_info)
+            else:
+                self.__handle_end_of_curr_line()
 
-        if not self.__end_of_curr_line():
-            step_terminated, step_truncated, step_reward, step_info = self.__move_forward()
-            info.update(step_info)
-        else:
-            self.__handle_end_of_curr_line()
+            terminated = self.__end_of_all_lines()
 
-        terminated = self.__end_of_all_lines()
+            return (terminated or step_terminated, truncated or step_truncated, reward + step_reward, info)
+        except OutOfBoundsException:
+            terminated = True
+            reward += score_funcs.out_of_bounds()
 
-        return (terminated or step_terminated, truncated or step_truncated, reward + step_reward, info)
+            return (terminated, truncated, reward, info)
 
     def __update_adjacency_map(self, stop_to_place: Stop):
         self.stop_adjacency_map.remove_adjacency_position(stop_to_place.id, self.curr_position)
