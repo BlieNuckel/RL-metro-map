@@ -5,6 +5,7 @@ __pycache__/
 *$py.class
 
 logs/
+generated_models/
 
 # C extensions
 *.so
