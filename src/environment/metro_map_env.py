@@ -62,6 +62,8 @@ class MetroMapEnv(gym.Env):
         reward: SupportsFloat = 0
         info: dict[str, Any] = {}
 
+        print(action)
+
         match action:
             case 0:
                 terminated, truncated, reward, info = self.__move_forward()
@@ -175,24 +177,27 @@ class MetroMapEnv(gym.Env):
             reward += score_funcs.out_of_bounds()
             terminated = True
 
-            return (terminated, truncated, reward, info)
-
-        if not self.grid.is_empty(self.curr_position):
-            self.consecutive_overlaps += 1
-        else:
-            self.consecutive_overlaps = 0
+            return terminated, truncated, reward, info
 
         self.grid[self.curr_position] = self.curr_line
 
         self.steps_since_stop += 1
         self.recent_turns.non_turn()
 
+        if not self.grid.is_empty(self.curr_position):
+            self.consecutive_overlaps += 1
+
+            if isinstance(self.grid[self.curr_position][0], Stop):
+                reward += score_funcs.stop_overlap()
+        else:
+            self.consecutive_overlaps = 0
+
         reward += score_funcs.line_overlap(self.consecutive_overlaps)
 
         curr_line_start_point = self.starting_positions[self.curr_line][0]
         reward += score_funcs.promote_spreading(self.curr_position.distance_to(curr_line_start_point))
 
-        return (terminated, truncated, reward, info)
+        return terminated, truncated, reward, info
 
     def __turn_and_move(self, new_direction: Direction) -> tuple[bool, bool, float, dict[str, Any]]:
         terminated: bool = False
@@ -203,24 +208,10 @@ class MetroMapEnv(gym.Env):
         self.curr_direction = new_direction
         self.curr_position += self.curr_direction.value
 
-        if not self.grid.is_in_bounds(self.curr_position):
-            reward += score_funcs.out_of_bounds()
-            terminated = True
-
-            return (terminated, truncated, reward, info)
-
-        if not self.grid.is_empty(self.curr_position):
-            self.consecutive_overlaps += 1
-        else:
-            self.consecutive_overlaps = 0
-
-        self.steps_since_stop += 1
-
-        self.grid[self.curr_position] = self.curr_line
-
         self.recent_turns.turn()
 
-        reward += score_funcs.line_overlap(self.consecutive_overlaps)
+        terminated, truncated, reward, info = self.__move_forward()
+
         reward += score_funcs.minimize_turns(self.recent_turns.num_of_turns())
 
         return (terminated, truncated, reward, info)

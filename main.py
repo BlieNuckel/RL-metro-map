@@ -4,9 +4,11 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
 from src.environment import MetroMapEnv
 
+# from stable_baselines3.common.callbacks import EvalCallback
+
 
 def main() -> None:
-    version = 3
+    version = 4
     timesteps = 1000000
     width = 700
     height = 300
@@ -23,12 +25,11 @@ def main() -> None:
 
     # eval_callback = EvalCallback(monitor, best_model_save_path=models_dir, eval_freq=100, n_eval_episodes=1)
 
-    model = DQN("MultiInputPolicy", monitor, tensorboard_log=log_dir, device="cuda")
+    model = DQN("MultiInputPolicy", monitor, tensorboard_log=log_dir, device="cuda", buffer_size=15000)
 
     model.learn(
         # callback=eval_callback,
         total_timesteps=timesteps,
-        reset_num_timesteps=False,
         log_interval=2,
         tb_log_name=f"RewardFunctions_v{version}",
         progress_bar=True,

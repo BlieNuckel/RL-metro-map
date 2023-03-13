@@ -49,13 +49,13 @@ class Grid(Generic[T]):
         if not self.is_in_bounds(position):
             raise OutOfBoundsException(position)
 
-        return self[position] is None
+        return len(self[position]) == 0
 
     def is_in_bounds(self, position: tuple[int, int] | Coordinates2d) -> bool:
         if isinstance(position, tuple):
             position = Coordinates2d(*position)
 
-        return position.x < self.width and position.y < self.height
+        return 0 <= position.x < self.width and 0 <= position.y < self.height
 
     def render(self, color_map: dict[str, tuple[int, int, int]]) -> np.ndarray:
 
@@ -123,7 +123,14 @@ class Grid(Generic[T]):
         if not self.is_in_bounds(key):
             raise OutOfBoundsException(key)
 
-        self.grid[key.y][key.x].append(value)
+        try:
+            self.grid[key.y][key.x].append(value)
+        except IndexError:
+            print("Index error occurred in grid, with following data:")
+            print(f"Position: {key}")
+            print(f"Out of bounds reported: {self.is_in_bounds(key)}")
+            print(f"Size is: {self.width}x{self.height}")
+            raise OutOfBoundsException(key)
 
     def __str__(self) -> str:
         return_str = ""
@@ -147,10 +154,6 @@ class Direction(Enum):
     @classmethod
     def list(cls) -> list["Direction"]:
         return list(cls)
-
-    @property
-    def value(self) -> tuple[int, int]:
-        return super().value
 
     def __int__(self):
         return self.list().index(self)
