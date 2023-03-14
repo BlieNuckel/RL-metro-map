@@ -1,12 +1,14 @@
 import gymnasium as gym
 from gymnasium.core import RenderFrame
-from typing import SupportsFloat, Any, cast
-from src.models import Stop, Coordinates2d
+from typing import SupportsFloat, Any
+from src.models import Stop
 from src.exceptions import OutOfBoundsException
+from src.models.env_data import EnvDataDef
 from src.models.grid import Direction, Grid
 from src.models.turn_queue import TurnQueue
 from src.models.stop_adjacency import StopAdjacency
-from src.environment import score_funcs, random_options
+from src.environment import score_funcs
+from src.environment.random_options import RandomOptions
 from src.utils.list import flat_map
 from collections import deque
 import numpy as np
@@ -17,19 +19,16 @@ import cv2  # type: ignore
 class MetroMapEnv(gym.Env):
     def __init__(
         self,
-        width: int,
-        height: int,
-        # lines: dict[str, deque[Stop]],
-        # starting_positions: dict[str, tuple[Coordinates2d, Direction]],
-        # stop_angle_mapping: dict[str, dict[str, float]],
-        # turn_limits: tuple[int, int],
-        # stop_spacing: int,
+        training_data: dict[str, EnvDataDef],
+        max_steps: int = 50000,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
+        self.max_steps = max_steps
+        self.random_options = RandomOptions(training_data)
         self.action_space = gym.spaces.Discrete(6)
         spaces: dict[str, gym.spaces.Space] = {
-            "board": gym.spaces.Box(-np.inf, np.inf, (width * height,), dtype=np.int16),
+            "recent_moves": gym.spaces.Box(-np.inf, np.inf, (max_steps,), dtype=np.int16),
             "stops_remaining_curr": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "lines_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
@@ -37,12 +36,10 @@ class MetroMapEnv(gym.Env):
             "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
+            "curr_position": gym.spaces.Box(0, np.inf, (2,), dtype=np.int16),
         }
         self.observation_space = gym.spaces.Dict(spaces)
         self.render_mode = render_mode
-
-        self.grid_width = width
-        self.grid_height = height
 
     @property
     def stops_remaining_curr(self) -> int:
@@ -62,7 +59,7 @@ class MetroMapEnv(gym.Env):
         reward: SupportsFloat = 0
         info: dict[str, Any] = {}
 
-        print(action)
+        self.recent_actions.append(action)
 
         match action:
             case 0:
@@ -94,38 +91,28 @@ class MetroMapEnv(gym.Env):
 
         info: dict[str, Any] = {}
 
-        if options is None:
-            env_data = random_options.generate_random_env_data(self.grid_width, self.grid_height)
+        if options is not None and "env_data_def" in options.keys():
+            assert isinstance(
+                options["env_data_def"], str
+            ), "env_data_def key must be mapped to a valid name of a set of map data in train_data.json"
 
-            self.grid = Grid[str | Stop](env_data.width, env_data.height)
-            self.lines = env_data.lines
-            self.stop_spacing = env_data.stop_spacing
-            self.real_stop_angles = env_data.stop_angle_mapping
-            self.max_turns, self.steps_to_count_turns = env_data.turn_limits
-            self.starting_positions = env_data.starting_positions
-            self.line_color_map = env_data.line_color_map
+            env_data = self.random_options.generate_env_data(data_name=options["env_data_def"])
         else:
-            assert all(
-                item in options.keys()
-                for item in [
-                    "lines",
-                    "stop_spacing",
-                    "stop_angle_mapping",
-                    "turn_limits",
-                    "starting_positions",
-                    "line_color_map",
-                    "grid_width",
-                    "grid_height",
-                ]
-            ), "You must pass an options dict containing: 'lines', 'stop_spacing', 'stop_angle_mapping', 'turn_limits', 'line_color_map', 'grid_width', 'grid_height' and 'starting_positions'"  # noqa: E501
+            if self.random_options is None:
+                raise ValueError(
+                    "You must either pass options, or instantiate the environment with a path to training data."
+                )
 
-            self.grid = Grid[str | Stop](cast(int, options["grid_width"]), cast(int, options["grid_height"]))
-            self.lines = cast(dict[str, deque[Stop]], options["lines"])
-            self.stop_spacing = cast(int, options["stop_spacing"])
-            self.real_stop_angles = cast(dict[str, dict[str, float]], options["stop_angle_mapping"])
-            self.max_turns, self.steps_to_count_turns = cast(tuple[int, int], options["turn_limits"])
-            self.starting_positions = cast(dict[str, tuple[Coordinates2d, Direction]], options["starting_positions"])
-            self.line_color_map = cast(dict[str, tuple[int, int, int]], options["line_color_map"])
+            env_data = self.random_options.generate_env_data(seed=seed)
+
+        self.grid = Grid[str | Stop](env_data.width, env_data.height)
+        self.recent_actions: deque[int] = deque([-1 for _ in range(self.max_steps)], maxlen=self.max_steps)
+        self.lines = env_data.lines
+        self.stop_spacing = env_data.stop_spacing
+        self.real_stop_angles = env_data.stop_angle_mapping
+        self.max_turns, self.steps_to_count_turns = env_data.turn_limits
+        self.starting_positions = env_data.starting_positions
+        self.line_color_map = env_data.line_color_map
 
         self.steps_since_stop = 0
         self.consecutive_overlaps = 0
@@ -154,7 +141,7 @@ class MetroMapEnv(gym.Env):
     def __compile_observations(self) -> dict[str, Any]:
         observations: dict[str, Any] = {}
 
-        observations["board"] = np.array(self.grid.to_observation(), dtype=np.int16)
+        observations["recent_moves"] = np.array(self.recent_actions, dtype=np.int16)
         observations["stops_remaining_curr"] = np.array([self.stops_remaining_curr], dtype=np.int16)
         observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int16)
         observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int16)
@@ -162,6 +149,7 @@ class MetroMapEnv(gym.Env):
         observations["num_of_turns"] = np.array([self.recent_turns.num_of_turns()], dtype=np.int16)
         observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
+        observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
 
         return observations
 
@@ -179,8 +167,6 @@ class MetroMapEnv(gym.Env):
 
             return terminated, truncated, reward, info
 
-        self.grid[self.curr_position] = self.curr_line
-
         self.steps_since_stop += 1
         self.recent_turns.non_turn()
 
@@ -189,11 +175,19 @@ class MetroMapEnv(gym.Env):
 
             if isinstance(self.grid[self.curr_position][0], Stop):
                 reward += score_funcs.stop_overlap()
+
+            if self.consecutive_overlaps > 1:
+                reward += score_funcs.line_overlap(self.consecutive_overlaps)
+                terminated = True
+
+                return terminated, truncated, reward, info
+
         else:
             self.consecutive_overlaps = 0
 
         reward += score_funcs.line_overlap(self.consecutive_overlaps)
 
+        self.grid[self.curr_position] = self.curr_line
         curr_line_start_point = self.starting_positions[self.curr_line][0]
         reward += score_funcs.promote_spreading(self.curr_position.distance_to(curr_line_start_point))
 
@@ -212,7 +206,7 @@ class MetroMapEnv(gym.Env):
 
         terminated, truncated, reward, info = self.__move_forward()
 
-        reward += score_funcs.minimize_turns(self.recent_turns.num_of_turns())
+        reward += score_funcs.minimize_turns(self.recent_turns.num_of_turns(), self.max_turns)
 
         return (terminated, truncated, reward, info)
 
@@ -235,11 +229,14 @@ class MetroMapEnv(gym.Env):
             terminated = True
 
             # If we're out of bounds return an immediate, high punishment and terminate
-            return (terminated, truncated, reward, info)
+            return terminated, truncated, reward, info
 
         try:
             if not self.grid.is_empty(self.curr_position):
                 reward += score_funcs.stop_overlap()
+                terminated = True
+
+                return terminated, truncated, reward, info
 
             stop_to_place = self.lines[self.curr_line].popleft()
             self.grid[self.curr_position] = stop_to_place

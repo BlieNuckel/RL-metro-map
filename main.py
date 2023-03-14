@@ -3,32 +3,42 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
 from src.environment import MetroMapEnv
-
-# from stable_baselines3.common.callbacks import EvalCallback
+from src.data_handling.load import load_training_data
+from stable_baselines3.common.callbacks import EvalCallback
 
 
 def main() -> None:
-    version = 4
+    version = 5
     timesteps = 1000000
-    width = 700
-    height = 300
-    models_dir = f"./generated_models/RewardFunctions_v{version}.zip"
+    models_dir = f"./generated_models/RewardFunctions_v{version}"
     log_dir = f"./logs/RewardFunctions_v{version}_logs"
 
     os.makedirs(log_dir, exist_ok=True)
 
-    env = MetroMapEnv(width, height, "rgb_array")
+    training_data = load_training_data("./src/data/train_data.json")
+
+    eval_env = MetroMapEnv(training_data=training_data)
+    eval_monitor = Monitor(eval_env)  # type: ignore
+
+    env = MetroMapEnv(render_mode="rgb_array", training_data=training_data)
     check_env(env)
 
     monitor = Monitor(env)  # type: ignore
     monitor.reset()
 
-    # eval_callback = EvalCallback(monitor, best_model_save_path=models_dir, eval_freq=100, n_eval_episodes=1)
+    eval_callback = EvalCallback(eval_monitor, best_model_save_path=models_dir, eval_freq=50000, n_eval_episodes=2)
 
-    model = DQN("MultiInputPolicy", monitor, tensorboard_log=log_dir, device="cuda", buffer_size=15000)
+    model = DQN(
+        "MultiInputPolicy",
+        monitor,
+        tensorboard_log=log_dir,
+        buffer_size=60000,
+        exploration_fraction=0.2,
+        device="cuda",
+    )
 
     model.learn(
-        # callback=eval_callback,
+        callback=eval_callback,
         total_timesteps=timesteps,
         log_interval=2,
         tb_log_name=f"RewardFunctions_v{version}",

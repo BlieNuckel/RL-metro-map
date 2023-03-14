@@ -74,7 +74,7 @@ class Grid(Generic[T]):
                         (x * 2, y * 2),
                         (x * 2 + 2, y * 2 + 2),
                         (255, 255, 255),
-                        3,
+                        thickness=cv2.FILLED,
                     )
                 elif isinstance(field[0], str):
                     try:
@@ -83,7 +83,7 @@ class Grid(Generic[T]):
                             (x * 2, y * 2),
                             (x * 2 + 2, y * 2 + 2),
                             color_map[field[0]],
-                            3,
+                            thickness=cv2.FILLED,
                         )
                     except KeyError:
                         print(f"Field with value {field} has skipped rendering. No color value found.")
@@ -154,6 +154,28 @@ class Direction(Enum):
     @classmethod
     def list(cls) -> list["Direction"]:
         return list(cls)
+
+    @classmethod
+    def from_str_val(cls, str_val: str) -> "Direction":
+        match str_val:
+            case "N":
+                return Direction.N
+            case "NE":
+                return Direction.NE
+            case "E":
+                return Direction.E
+            case "SE":
+                return Direction.SE
+            case "S":
+                return Direction.S
+            case "SW":
+                return Direction.SW
+            case "W":
+                return Direction.W
+            case "NW":
+                return Direction.NW
+            case _:
+                raise ValueError("The string value must be N, NE, E, SE, S, SW, W, or NW")
 
     def __int__(self):
         return self.list().index(self)

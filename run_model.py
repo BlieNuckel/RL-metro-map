@@ -1,6 +1,7 @@
 from stable_baselines3 import DQN
 from stable_baselines3.common.monitor import Monitor
 from src.environment import MetroMapEnv
+from src.data_handling.load import load_training_data
 from typing import SupportsFloat
 import cv2  # type: ignore
 import sys
@@ -11,19 +12,18 @@ def main() -> None:
 
     args = sys.argv
 
-    width = 700
-    height = 300
     models_dir = f"./generated_models/{args[1]}.zip"
 
-    env = MetroMapEnv(width, height)
-    monitor = Monitor(env)  # type: ignore
-    monitor.reset()
+    training_data = load_training_data("./src/data/train_data.json")
 
-    model = DQN.load(models_dir, monitor)
+    env = MetroMapEnv(training_data=training_data, render_mode="human")
+    monitor = Monitor(env, reset_keywords=tuple(["options"]))  # type: ignore
+
+    model = DQN.load(models_dir, monitor, device="cuda")
 
     terminated = False
     truncated = False
-    obs, info = monitor.reset()
+    obs, info = monitor.reset(options={"env_data_def": "2_lines_wide_format"})
     reward: SupportsFloat = 0
     steps = 0
 
