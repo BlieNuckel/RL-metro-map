@@ -1,14 +1,15 @@
 import math
 
-C_LINE_OVERLAP = 10
-C_STOP_OVERLAP = 10
-C_OUT_OF_BOUNDS = 10
-C_STOP_ADJACENCY = 8
-C_STOP_RELATIVE_POS = 9
-C_STOP_DISTRIBUTION = 6
-C_MINIMIZE_TURNS = 5
-C_PROMOTE_SPREADING = 4
-C_FINISHED = 10
+C_LINE_OVERLAP = 20
+C_STOP_OVERLAP = 20
+C_OUT_OF_BOUNDS = 20
+C_STOP_ADJACENCY = 6
+C_STOP_RELATIVE_POS = 14
+C_STOP_DISTRIBUTION = 4.5
+C_MINIMIZE_TURNS = 3.5
+C_PROMOTE_SPREADING = 1.5
+C_FINISHED = 20
+C_TIME_ALIVE = 5
 
 
 def line_overlap(consecutive_overlaps: int) -> float:
@@ -52,11 +53,18 @@ def minimize_turns(num_of_recent_turns: int, max_recent_turns: int) -> float:
     return C_MINIMIZE_TURNS * _clamp_min(-1, -(2 ** (num_of_recent_turns - max_recent_turns)) + 1)
 
 
-def promote_spreading(distance_from_start: float) -> float:
-    if distance_from_start <= 0:
-        return C_PROMOTE_SPREADING * 0
+# def promote_spreading(distance_from_start: float) -> float:
+#     if distance_from_start <= 0:
+#         return C_PROMOTE_SPREADING * 0
 
-    return C_PROMOTE_SPREADING * _clamp_min(0, 0.2 * math.log10(distance_from_start))
+#     return C_PROMOTE_SPREADING * _clamp_min(0, 0.2 * math.log10(distance_from_start))
+
+
+def time_alive(time_step: int) -> float:
+    if time_step <= 0:
+        return C_TIME_ALIVE * 0
+
+    return C_TIME_ALIVE * _clamp_max(1, 0.1 * time_step)
 
 
 def finished() -> float:
@@ -65,6 +73,10 @@ def finished() -> float:
 
 def _clamp_min(min_val: float, value: float) -> float:
     return max(min_val, value)
+
+
+def _clamp_max(max_val: float, value: float) -> float:
+    return min(max_val, value)
 
 
 def _clamp(min_val: float, max_val: float, value: float) -> float:

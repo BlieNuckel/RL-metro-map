@@ -16,7 +16,7 @@ def main() -> None:
 
     training_data = load_training_data("./src/data/train_data.json")
 
-    env = MetroMapEnv(training_data=training_data, render_mode="human")
+    env = MetroMapEnv(training_data=training_data, render_mode="rgb_array")
     monitor = Monitor(env, reset_keywords=tuple(["options"]))  # type: ignore
 
     model = DQN.load(models_dir, monitor, device="cuda")

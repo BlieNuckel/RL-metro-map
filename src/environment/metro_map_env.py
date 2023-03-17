@@ -3,6 +3,7 @@ from gymnasium.core import RenderFrame
 from typing import SupportsFloat, Any
 from src.models import Stop
 from src.exceptions import OutOfBoundsException
+from src.models.coordinates2d import Coordinates2d
 from src.models.env_data import EnvDataDef
 from src.models.grid import Direction, Grid
 from src.models.turn_queue import TurnQueue
@@ -20,15 +21,18 @@ class MetroMapEnv(gym.Env):
     def __init__(
         self,
         training_data: dict[str, EnvDataDef],
-        max_steps: int = 50000,
+        max_steps: int = 15000,
+        max_stops: int = 250,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
         self.max_steps = max_steps
+        self.max_stops = max_stops
         self.random_options = RandomOptions(training_data)
         self.action_space = gym.spaces.Discrete(6)
         spaces: dict[str, gym.spaces.Space] = {
-            "recent_moves": gym.spaces.Box(-np.inf, np.inf, (max_steps,), dtype=np.int16),
+            "stop_positions": gym.spaces.Box(-1, np.inf, (max_stops * 2,), dtype=np.int16),
+            "line_positions": gym.spaces.Box(-1, np.inf, (max_steps * 2,), dtype=np.int16),
             "stops_remaining_curr": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "lines_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
@@ -37,6 +41,7 @@ class MetroMapEnv(gym.Env):
             "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
             "curr_position": gym.spaces.Box(0, np.inf, (2,), dtype=np.int16),
+            "relative_stop_pos": gym.spaces.Box(-1, 360, (max_stops**2,), dtype=np.float32),
         }
         self.observation_space = gym.spaces.Dict(spaces)
         self.render_mode = render_mode
@@ -56,10 +61,8 @@ class MetroMapEnv(gym.Env):
     def step(self, action: int) -> tuple[dict[str, Any], SupportsFloat, bool, bool, dict[str, Any]]:
         terminated: bool = False
         truncated: bool = False
-        reward: SupportsFloat = 0
+        reward: float = 0
         info: dict[str, Any] = {}
-
-        self.recent_actions.append(action)
 
         match action:
             case 0:
@@ -76,6 +79,9 @@ class MetroMapEnv(gym.Env):
                 terminated, truncated, reward, info = self.__place_stop()
             case _:
                 pass
+
+        self.total_steps += 1
+        reward += score_funcs.time_alive(self.total_steps)
 
         if self.render_mode == "human":
             img = self.grid.render(self.line_color_map)
@@ -106,7 +112,8 @@ class MetroMapEnv(gym.Env):
             env_data = self.random_options.generate_env_data(seed=seed)
 
         self.grid = Grid[str | Stop](env_data.width, env_data.height)
-        self.recent_actions: deque[int] = deque([-1 for _ in range(self.max_steps)], maxlen=self.max_steps)
+        self.stop_positions: deque[int] = deque([-1 for _ in range(self.max_stops * 2)], maxlen=self.max_stops * 2)
+        self.line_positions: deque[int] = deque([-1 for _ in range(self.max_steps * 2)], maxlen=self.max_steps * 2)
         self.lines = env_data.lines
         self.stop_spacing = env_data.stop_spacing
         self.real_stop_angles = env_data.stop_angle_mapping
@@ -123,6 +130,8 @@ class MetroMapEnv(gym.Env):
         self.lines_remaining_all = len(self.lines.keys()) - 1
         self.curr_position, self.curr_direction = self.starting_positions[self.curr_line]
         self.placed_stops: list[Stop] = []
+
+        self.total_steps = 0
 
         return (self.__compile_observations(), info)
 
@@ -141,7 +150,8 @@ class MetroMapEnv(gym.Env):
     def __compile_observations(self) -> dict[str, Any]:
         observations: dict[str, Any] = {}
 
-        observations["recent_moves"] = np.array(self.recent_actions, dtype=np.int16)
+        observations["stop_positions"] = np.array(self.stop_positions, dtype=np.int16)
+        observations["line_positions"] = np.array(self.line_positions, dtype=np.int16)
         observations["stops_remaining_curr"] = np.array([self.stops_remaining_curr], dtype=np.int16)
         observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int16)
         observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int16)
@@ -150,6 +160,19 @@ class MetroMapEnv(gym.Env):
         observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
+
+        relative_stop_pos_arr = np.array(
+            flat_map([list(inner_dict.values()) for inner_dict in self.real_stop_angles.values()]), dtype=np.float32
+        )
+
+        relative_stop_pos_arr = np.pad(
+            relative_stop_pos_arr,
+            ((0, self.max_stops**2 - relative_stop_pos_arr.size)),
+            mode="constant",
+            constant_values=(-1),
+        )
+
+        observations["relative_stop_pos"] = relative_stop_pos_arr
 
         return observations
 
@@ -188,8 +211,9 @@ class MetroMapEnv(gym.Env):
         reward += score_funcs.line_overlap(self.consecutive_overlaps)
 
         self.grid[self.curr_position] = self.curr_line
-        curr_line_start_point = self.starting_positions[self.curr_line][0]
-        reward += score_funcs.promote_spreading(self.curr_position.distance_to(curr_line_start_point))
+
+        self.line_positions.append(self.curr_position.x)
+        self.line_positions.append(self.curr_position.y)
 
         return terminated, truncated, reward, info
 
@@ -200,7 +224,7 @@ class MetroMapEnv(gym.Env):
         info: dict[str, Any] = {}
 
         self.curr_direction = new_direction
-        self.curr_position += self.curr_direction.value
+        # self.curr_position += self.curr_direction.value
 
         self.recent_turns.turn()
 
@@ -260,11 +284,15 @@ class MetroMapEnv(gym.Env):
             reward += self.__score_relative_stop_positions(stop_to_place)
             self.placed_stops.append(stop_to_place)
 
+            self.stop_positions.append(self.curr_position.x)
+            self.stop_positions.append(self.curr_position.y)
+
             if not self.__end_of_curr_line():
                 step_terminated, step_truncated, step_reward, step_info = self.__move_forward()
                 info.update(step_info)
             else:
                 self.__handle_end_of_curr_line()
+                reward += score_funcs.finished()
 
             terminated = self.__end_of_all_lines()
 

@@ -37,6 +37,7 @@ class RandomOptions:
             stop_distribution = env_data_def.stop_spacing
 
         routes_df = self._load_and_parse_data(env_data_def.lines)
+
         routes_dict = dataframe_as_routes_and_stops(routes_df)
 
         stop_angle_mapping = extract_stop_angle_mappings(routes_dict)

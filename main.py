@@ -1,5 +1,6 @@
 import os
 from stable_baselines3 import DQN
+from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
 from src.environment import MetroMapEnv
@@ -8,8 +9,8 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 
 def main() -> None:
-    version = 5
-    timesteps = 1000000
+    version = 7
+    timesteps = 2000000
     models_dir = f"./generated_models/RewardFunctions_v{version}"
     log_dir = f"./logs/RewardFunctions_v{version}_logs"
 
@@ -26,14 +27,18 @@ def main() -> None:
     monitor = Monitor(env)  # type: ignore
     monitor.reset()
 
-    eval_callback = EvalCallback(eval_monitor, best_model_save_path=models_dir, eval_freq=50000, n_eval_episodes=2)
+    eval_callback = EvalCallback(eval_monitor, best_model_save_path=models_dir, eval_freq=50000, n_eval_episodes=5)
 
     model = DQN(
         "MultiInputPolicy",
         monitor,
         tensorboard_log=log_dir,
-        buffer_size=60000,
-        exploration_fraction=0.2,
+        buffer_size=25000,
+        learning_starts=100000,
+        learning_rate=1e-4,
+        target_update_interval=1000,
+        train_freq=4,
+        exploration_final_eps=0.01,
         device="cuda",
     )
 
@@ -45,7 +50,7 @@ def main() -> None:
         progress_bar=True,
     )
 
-    model.save(models_dir)
+    model.save(os.path.join(models_dir, "final_model"))
 
     monitor.close()
 
