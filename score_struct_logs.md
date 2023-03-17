@@ -133,7 +133,7 @@ Updated overlap checking when stepping, to ensure that if a line is drawn on top
 |Out of bounds|Weight: 10|
 |Line overlap|Weight: 8|
 |Stop adjacency|Weight: 5|
-|Relative Positions|Weight: 8|
+|Relative positions|Weight: 8|
 |Stop distribution|Weight: 8|
 |Minimize turns|Weight: 3|
 |Promote spreading|Weight: 5|
@@ -176,3 +176,71 @@ Included a new field for the agent to know its current location. It already knew
 The previous version was training very slowly and had issues with replay buffer size, hence, the observation space restructure. The main issue this version aims to resolve besides faster train times was it would produce a model that would run in circles. This is believed to be because overlaps were only punished, but didn't end in termination.
 
 Besides this the previous version also had some meta issues, relating to the training data not being randomized. This version has updated systems for loading data from JSON files, which will allow us to introduce new training maps when T-Kartor provides them.
+
+
+
+## **Version 6** | [f724864](https://github.com/BlieNuckel/RL-metro-map/commit/f724864e39f782b4be136ae2e8675dce8a24ec85)
+
+Logs folder: RewardFunctions_v6\
+
+&nbsp;
+
+### **Observation Space**
+The observation space now contains a list of the real-life stops' relative angles, to hopefully help point the agent to how it's scored when it places stops (as this is scored relative to the real stops' relative angles).
+
+**Other Changes**
+
+### **Reward Functions**
+|Name|Reward function|
+|----|---------------|
+|Line overlap|Weight increased from 10 to 20 to have a higher impact|
+|Stop overlap|Weight increased from 10 to 20 to have a higher impact|
+|Out of bounds|Weight increased from 10 to 100 to have a higher impact|
+|Relative positions|Weight increased from 9 to 14. This allows it to be much more impactful than other rules, as it is not following this at all currently.|
+|Stop adjacency|Weight increased from 5 to 6|
+|Stop distribution|Weight decreased from 5 to 4.5|
+|Minimize turns|Weight increased from 3 to 3.5|
+|Promote spreading|Weight decreased from 5 to 1.5. We just want it to be a suggestive reward, it's nowhere near as required as the other rules|
+|**New**||
+|Finished line|Gives a large reward when a line is completely finished|
+|Time alive|Gives a scaled down linear reward with respect to the lifetime of the agent. This replaces "promote spreading" to helpfully encourage the agent to follow relative positions for placement learning, as opposed to just drawing straight lines outwards. Has a small weight of 1.5 to not override stop distribution to stay alive longer than needed.|
+|**Removed**||
+|Promote spreading|Removed in favor of "Time alive"|
+
+### **Generated Maps**
+![best_model](./generated_maps/RewardFunctions_v6_best_model.png)
+*Best model created throughout the training of v6.*
+
+### **Issues attempted to fix**
+The previous version had a hard time learning to understand it should not run into itself, as this is now a terminal state. It was so bad it didn't even manage to get to the point where it would complete entire maps, much less getting to the point where other issues were considered such as spacing between stops or attempting to place stops correctly relatively.
+
+Part of the issue might be the weights not being extreme enough on certain important aspects such as the relative positioning. Another issue could be that the list of previous actions doesn't appropriately suggest to the algorithm where it can and cannot go. Lastly it could be a lack of fore-sight (regarding stop placements), that results in the problem.
+
+
+
+## **Version 7** | [f724864](https://github.com/BlieNuckel/RL-metro-map/commit/f724864e39f782b4be136ae2e8675dce8a24ec85)
+
+Logs folder: RewardFunctions_v7\
+
+&nbsp;
+
+### **Other Changes**
+New hyper parameters tested to see if learning could be improved.
+
+learning_starts = 100000
+learning_rate = 1e-4
+target_update_interval = 1000
+train_freq = 4
+exploration_final_eps = 0.01
+
+These hyperparameters are not optimized, but taken from an optimization of the DQN algorithm on another environment.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v7_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v7_best_model.png)
+*Best generated map made throughout training of v7*
+
+### **Issues attempted to fix**
+The previous version would complete the run, but would not manage to achieve any turning. Hyper parameters were changed in an attempt to help with learning speeds.
