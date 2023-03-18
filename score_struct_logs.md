@@ -244,3 +244,26 @@ These hyperparameters are not optimized, but taken from an optimization of the D
 
 ### **Issues attempted to fix**
 The previous version would complete the run, but would not manage to achieve any turning. Hyper parameters were changed in an attempt to help with learning speeds.
+
+
+
+## **Version 8** | [0ce07ef](https://github.com/BlieNuckel/RL-metro-map/commit/0ce07ef83319fa45589268c23afd470646fa1a77)
+
+Logs folder: RewardFunctions_v8\
+
+&nbsp;
+
+### **Observation Space**
+The observation space has been updated in several ways. First off, the list of previous actions has been removed and replaced with 2 lists with 8 entries. These 8 entries describe in which directions of the current position there are lines and stops. A similar array of 8 entries has been added to describe the existence of out-of-bounds blocks next to the current position.
+
+The relative angles observation has been updated to only include the angles of the next stop to place to all other stops. For the stops that have not yet been placed on the map, a normalized position of the stop's real position is used to find the angle. This is meant to hopefully give the algorithm a way to "look ahead" when placing things.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v8_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v8_best_model.png)
+*Best generated map made throughout training of v8*
+
+### **Issues attempted to fix**
+The previous version continued to exhibit similar issues as previously, where it would not understand how to avoid collisions. Similarly it continued to draw exclusively straight lines with no regard for the positions the stops should have.
