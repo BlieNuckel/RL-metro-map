@@ -3,7 +3,6 @@ from gymnasium.core import RenderFrame
 from typing import SupportsFloat, Any
 from src.models import Stop
 from src.exceptions import OutOfBoundsException
-from src.models.coordinates2d import Coordinates2d
 from src.models.env_data import EnvDataDef
 from src.models.grid import Direction, Grid
 from src.models.turn_queue import TurnQueue
@@ -11,7 +10,6 @@ from src.models.stop_adjacency import StopAdjacency
 from src.environment import score_funcs
 from src.environment.random_options import RandomOptions
 from src.utils.list import flat_map
-from collections import deque
 import numpy as np
 import math
 import cv2  # type: ignore
@@ -31,8 +29,9 @@ class MetroMapEnv(gym.Env):
         self.random_options = RandomOptions(training_data)
         self.action_space = gym.spaces.Discrete(6)
         spaces: dict[str, gym.spaces.Space] = {
-            "stop_positions": gym.spaces.Box(-1, np.inf, (max_stops * 2,), dtype=np.int16),
-            "line_positions": gym.spaces.Box(-1, np.inf, (max_steps * 2,), dtype=np.int16),
+            "stop_in_adjacent_fields": gym.spaces.Box(0, 1, (8,), dtype=np.int16),
+            "line_in_adjacent_fields": gym.spaces.Box(0, 1, (8,), dtype=np.int16),
+            "out_of_bounds_in_adjacent_fields": gym.spaces.Box(0, 1, (8,), dtype=np.int16),
             "stops_remaining_curr": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "lines_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
@@ -41,14 +40,15 @@ class MetroMapEnv(gym.Env):
             "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
             "curr_position": gym.spaces.Box(0, np.inf, (2,), dtype=np.int16),
-            "relative_stop_pos": gym.spaces.Box(-1, 360, (max_stops**2,), dtype=np.float32),
+            "stop_angle_diff": gym.spaces.Box(-1, 360, (max_stops,)),
+            "adjacent_to_same_stop": gym.spaces.Discrete(2),
         }
         self.observation_space = gym.spaces.Dict(spaces)
         self.render_mode = render_mode
 
     @property
     def stops_remaining_curr(self) -> int:
-        return len(self.lines[self.curr_line])
+        return len(self.lines[self.curr_line]) - (self.curr_stop_index + 1)
 
     @property
     def curr_line(self) -> str:
@@ -56,13 +56,73 @@ class MetroMapEnv(gym.Env):
 
     @property
     def stops_remaining_all(self) -> int:
-        return len(flat_map(list(self.lines.values())))
+        all_stops: list[Stop] = []
+        for i, (_, stops) in enumerate(self.lines.items()):
+            if i <= self.curr_line_index:
+                continue
+            all_stops.extend(stops)
+
+        return len(all_stops) + self.stops_remaining_curr
+
+    @property
+    def curr_stop(self) -> Stop:
+        return self.lines[self.curr_line][self.curr_stop_index]
+
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        super().reset(seed=seed, options=options)
+
+        info: dict[str, Any] = {}
+
+        if options is not None and "env_data_def" in options.keys():
+            assert isinstance(
+                options["env_data_def"], str
+            ), "env_data_def key must be mapped to a valid name of a set of map data in train_data.json"
+
+            env_data = self.random_options.generate_env_data(data_name=options["env_data_def"])
+        else:
+            if self.random_options is None:
+                raise ValueError(
+                    "You must either pass options, or instantiate the environment with a path to training data."
+                )
+
+            env_data = self.random_options.generate_env_data(seed=seed)
+
+        self.grid = Grid[str | Stop](env_data.width, env_data.height)
+        self.lines = env_data.lines
+        self.stop_spacing = env_data.stop_spacing
+        self.real_stop_angles = env_data.stop_angle_mapping
+        self.max_turns, self.steps_to_count_turns = env_data.turn_limits
+        self.starting_positions = env_data.starting_positions
+        self.line_color_map = env_data.line_color_map
+
+        self.steps_since_stop = 0
+        self.consecutive_overlaps = 0
+        self.stop_adjacency_map: StopAdjacency = StopAdjacency()
+        self.stop_in_adjacent_fields: np.ndarray = np.zeros((8,))
+        self.line_in_adjacent_fields: np.ndarray = np.zeros((8,))
+        self.out_of_bounds_in_adjacent_fields: np.ndarray = np.zeros((8,))
+        self.recent_turns = TurnQueue(self.steps_to_count_turns)
+
+        self.curr_line_index = 0
+        self.lines_remaining_all = len(self.lines.keys()) - 1
+        self.curr_position, self.curr_direction = self.starting_positions[self.curr_line]
+        self.curr_stop_index = 0
+        self.placed_stops: list[Stop] = []
+
+        self.total_steps = 0
+
+        return (self.__compile_observations(), info)
 
     def step(self, action: int) -> tuple[dict[str, Any], SupportsFloat, bool, bool, dict[str, Any]]:
         terminated: bool = False
         truncated: bool = False
         reward: float = 0
         info: dict[str, Any] = {}
+
+        self.line_in_adjacent_fields = np.zeros((8,))
+        self.stop_in_adjacent_fields = np.zeros((8,))
 
         match action:
             case 0:
@@ -90,51 +150,6 @@ class MetroMapEnv(gym.Env):
 
         return self.__compile_observations(), reward, terminated, truncated, info
 
-    def reset(
-        self, *, seed: int | None = None, options: dict[str, Any] | None = None
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
-        super().reset(seed=seed, options=options)
-
-        info: dict[str, Any] = {}
-
-        if options is not None and "env_data_def" in options.keys():
-            assert isinstance(
-                options["env_data_def"], str
-            ), "env_data_def key must be mapped to a valid name of a set of map data in train_data.json"
-
-            env_data = self.random_options.generate_env_data(data_name=options["env_data_def"])
-        else:
-            if self.random_options is None:
-                raise ValueError(
-                    "You must either pass options, or instantiate the environment with a path to training data."
-                )
-
-            env_data = self.random_options.generate_env_data(seed=seed)
-
-        self.grid = Grid[str | Stop](env_data.width, env_data.height)
-        self.stop_positions: deque[int] = deque([-1 for _ in range(self.max_stops * 2)], maxlen=self.max_stops * 2)
-        self.line_positions: deque[int] = deque([-1 for _ in range(self.max_steps * 2)], maxlen=self.max_steps * 2)
-        self.lines = env_data.lines
-        self.stop_spacing = env_data.stop_spacing
-        self.real_stop_angles = env_data.stop_angle_mapping
-        self.max_turns, self.steps_to_count_turns = env_data.turn_limits
-        self.starting_positions = env_data.starting_positions
-        self.line_color_map = env_data.line_color_map
-
-        self.steps_since_stop = 0
-        self.consecutive_overlaps = 0
-        self.stop_adjacency_map: StopAdjacency = StopAdjacency()
-        self.recent_turns = TurnQueue(self.steps_to_count_turns)
-
-        self.curr_line_index = 0
-        self.lines_remaining_all = len(self.lines.keys()) - 1
-        self.curr_position, self.curr_direction = self.starting_positions[self.curr_line]
-        self.placed_stops: list[Stop] = []
-
-        self.total_steps = 0
-
-        return (self.__compile_observations(), info)
-
     def render(self) -> RenderFrame | list[RenderFrame] | None:
         if self.render_mode is None:
             return None
@@ -150,8 +165,11 @@ class MetroMapEnv(gym.Env):
     def __compile_observations(self) -> dict[str, Any]:
         observations: dict[str, Any] = {}
 
-        observations["stop_positions"] = np.array(self.stop_positions, dtype=np.int16)
-        observations["line_positions"] = np.array(self.line_positions, dtype=np.int16)
+        observations["stop_in_adjacent_fields"] = np.array(self.stop_in_adjacent_fields, dtype=np.int16)
+        observations["line_in_adjacent_fields"] = np.array(self.line_in_adjacent_fields, dtype=np.int16)
+        observations["out_of_bounds_in_adjacent_fields"] = np.array(
+            self.out_of_bounds_in_adjacent_fields, dtype=np.int16
+        )
         observations["stops_remaining_curr"] = np.array([self.stops_remaining_curr], dtype=np.int16)
         observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int16)
         observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int16)
@@ -160,19 +178,13 @@ class MetroMapEnv(gym.Env):
         observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
-
-        relative_stop_pos_arr = np.array(
-            flat_map([list(inner_dict.values()) for inner_dict in self.real_stop_angles.values()]), dtype=np.float32
+        observations["stop_angle_diff"] = np.array(self.__find_relative_stop_angle_diffs(), dtype=np.int16)
+        observations["adjacent_to_same_stop"] = (
+            1
+            if self.stop_adjacency_map.is_first(self.curr_stop.id)
+            or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position)
+            else 0
         )
-
-        relative_stop_pos_arr = np.pad(
-            relative_stop_pos_arr,
-            ((0, self.max_stops**2 - relative_stop_pos_arr.size)),
-            mode="constant",
-            constant_values=(-1),
-        )
-
-        observations["relative_stop_pos"] = relative_stop_pos_arr
 
         return observations
 
@@ -212,8 +224,7 @@ class MetroMapEnv(gym.Env):
 
         self.grid[self.curr_position] = self.curr_line
 
-        self.line_positions.append(self.curr_position.x)
-        self.line_positions.append(self.curr_position.y)
+        self.__update_line_and_stop_adjacent()
 
         return terminated, truncated, reward, info
 
@@ -262,7 +273,7 @@ class MetroMapEnv(gym.Env):
 
                 return terminated, truncated, reward, info
 
-            stop_to_place = self.lines[self.curr_line].popleft()
+            stop_to_place = self.lines[self.curr_line][self.curr_stop_index]
             self.grid[self.curr_position] = stop_to_place
             stop_to_place.position = self.curr_position
 
@@ -284,10 +295,10 @@ class MetroMapEnv(gym.Env):
             reward += self.__score_relative_stop_positions(stop_to_place)
             self.placed_stops.append(stop_to_place)
 
-            self.stop_positions.append(self.curr_position.x)
-            self.stop_positions.append(self.curr_position.y)
+            self.__update_line_and_stop_adjacent()
 
             if not self.__end_of_curr_line():
+                self.curr_stop_index += 1
                 step_terminated, step_truncated, step_reward, step_info = self.__move_forward()
                 info.update(step_info)
             else:
@@ -315,6 +326,23 @@ class MetroMapEnv(gym.Env):
         if not isinstance(self.grid[right_of_stop], Stop):
             self.stop_adjacency_map.add_adjacency_position(stop_to_place.id, right_of_stop)
 
+    def __update_line_and_stop_adjacent(self) -> None:
+        for i, dir in enumerate(Direction.list()):
+            check_pos = self.curr_position + dir.value
+
+            if not self.grid.is_in_bounds(check_pos):
+                self.out_of_bounds_in_adjacent_fields[i] = 1
+                continue
+
+            if self.grid.is_empty(check_pos):
+                continue
+
+            if isinstance(self.grid[check_pos][0], Stop):
+                self.stop_in_adjacent_fields[i] = 1
+                continue
+
+            self.line_in_adjacent_fields[i] = 1
+
     def __score_relative_stop_positions(self, stop: Stop) -> float:
         scores: list[float] = []
         for placed_stop in self.placed_stops:
@@ -328,6 +356,31 @@ class MetroMapEnv(gym.Env):
 
         return math.fsum(scores)
 
+    def __find_relative_stop_angle_diffs(self) -> np.ndarray:
+        next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
+        next_stop_real_angles_arr = list(
+            {key: next_stop_real_angles_dict[key] for key in sorted(next_stop_real_angles_dict)}.values()
+        )
+        next_stop_curr_angles: list[float] = []
+
+        list_of_all_stops = flat_map(self.lines.values())
+
+        for stop in sorted(list_of_all_stops, key=lambda item: item.id):
+            if stop == self.curr_stop:
+                continue
+
+            next_stop_curr_angles.append(stop.angle_to_stop(self.curr_position))
+
+        angle_diff_arr = np.array(
+            [abs(a_i - b_i) for a_i, b_i in zip(next_stop_real_angles_arr, next_stop_curr_angles)]
+        )
+        return np.pad(
+            angle_diff_arr,
+            ((0, self.max_stops - angle_diff_arr.size)),
+            mode="constant",
+            constant_values=(-1),
+        )
+
     def __handle_end_of_curr_line(self) -> None:
         if not self.__end_of_curr_line():
             return
@@ -338,6 +391,7 @@ class MetroMapEnv(gym.Env):
         self.curr_line_index += 1
         self.lines_remaining_all -= 1
 
+        self.curr_stop_index = 0
         self.curr_position, self.curr_direction = self.starting_positions[self.curr_line]
 
     def __end_of_curr_line(self) -> bool:

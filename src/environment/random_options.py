@@ -4,6 +4,7 @@ from src.data_handling.data_modifiers import (
     remove_duplicate_stops,
     dataframe_as_routes_and_stops,
     extract_stop_angle_mappings,
+    normalize_stop_positions,
 )
 from src.constants.data import STOP_NUMBER_COLUMN
 from src.models import Stop
@@ -42,7 +43,12 @@ class RandomOptions:
 
         stop_angle_mapping = extract_stop_angle_mappings(routes_dict)
 
-        routes_dict_deque: dict[str, deque[Stop]] = dict([(key, deque(value)) for key, value in routes_dict.items()])
+        routes_dict_deque: dict[str, deque[Stop]] = dict(
+            [
+                (key, deque(normalize_stop_positions(value, (0, env_data_def.width), (0, env_data_def.height))))
+                for key, value in routes_dict.items()
+            ]
+        )
 
         return EnvData(
             env_data_def.width,

@@ -11,6 +11,7 @@ from src.constants.data import (
 from src.models import Stop, Coordinates2d
 from src.utils.list import flat_map
 from typing import NamedTuple
+import math
 
 
 # TODO Collapsing still fails on example BP4456, 33008, and 33012.
@@ -73,6 +74,28 @@ def extract_stop_angle_mappings(data: dict[str, list[Stop]]) -> dict[str, dict[s
         stop_angle_mapping[stop.id] = relative_stop_angles
 
     return stop_angle_mapping
+
+
+def normalize_stop_positions(stops: list[Stop], x_limits: tuple[int, int], y_limits: tuple[int, int]) -> list[Stop]:
+    # center_point = center_geolocation([stop.position for stop in stops])
+
+    max_x = max([abs(stop.position.x) for stop in stops])
+    max_y = max([abs(stop.position.y) for stop in stops])
+    min_x = min([abs(stop.position.x) for stop in stops])
+    min_y = min([abs(stop.position.y) for stop in stops])
+
+    x_min_limit = x_limits[0]
+    x_max_limit = x_limits[1]
+    y_min_limit = y_limits[0]
+    y_max_limit = y_limits[1]
+
+    for stop in stops:
+        norm_x = (x_max_limit - x_min_limit) * ((stop.position.x - min_x) / (max_x - min_x)) + x_min_limit
+        norm_y = (y_max_limit - y_min_limit) * ((stop.position.y - min_y) / (max_y - min_y)) + y_min_limit
+
+        stop.position = Coordinates2d(math.floor(norm_x), math.floor(norm_y))
+
+    return stops
 
 
 # def generate_starting_positions(routes_dict: dict[str, list[Stop]]) -> dict[str, tuple[Coordinates2d, Direction]]:
