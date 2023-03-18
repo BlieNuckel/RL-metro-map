@@ -38,6 +38,8 @@ class MetroMapEnv(gym.Env):
             "num_of_consecutive_overlaps": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "stop_spacing": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "steps_since_stop": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
             "curr_position": gym.spaces.Box(0, np.inf, (2,), dtype=np.int16),
             "stop_angle_diff": gym.spaces.Box(-1, 360, (max_stops,)),
@@ -123,6 +125,7 @@ class MetroMapEnv(gym.Env):
 
         self.line_in_adjacent_fields = np.zeros((8,))
         self.stop_in_adjacent_fields = np.zeros((8,))
+        self.out_of_bounds_in_adjacent_fields = np.zeros((8,))
 
         match action:
             case 0:
@@ -185,6 +188,8 @@ class MetroMapEnv(gym.Env):
             or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position)
             else 0
         )
+        observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
+        observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
 
         return observations
 
@@ -357,6 +362,15 @@ class MetroMapEnv(gym.Env):
         return math.fsum(scores)
 
     def __find_relative_stop_angle_diffs(self) -> np.ndarray:
+        # if self.curr_stop_index == 0:
+        #     num_of_stops = len(self.real_stop_angles[self.curr_stop.id])
+        #     return np.pad(
+        #         np.array([0 for _ in range(num_of_stops)]),
+        #         ((0, self.max_stops - num_of_stops)),
+        #         mode="constant",
+        #         constant_values=(-1),
+        #     )
+
         next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
         next_stop_real_angles_arr = list(
             {key: next_stop_real_angles_dict[key] for key in sorted(next_stop_real_angles_dict)}.values()
