@@ -43,7 +43,9 @@ def stop_relative_position(angle_difference: float) -> float:
     if abs(angle_difference) < 22.5:
         return C_STOP_RELATIVE_POS * 1
     else:
-        return C_STOP_RELATIVE_POS * (math.e ** ((-abs(angle_difference) + 22.5) / 4))
+        return C_STOP_RELATIVE_POS * (
+            math.e ** ((-abs(angle_difference) + 22.5) / 4)
+        )  # (((math.e / 2) ** (-abs(angle_difference) + 24.75)) - 1)
 
 
 def minimize_turns(num_of_recent_turns: int, max_recent_turns: int) -> float:

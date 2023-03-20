@@ -144,7 +144,7 @@ class MetroMapEnv(gym.Env):
                 pass
 
         self.total_steps += 1
-        reward += score_funcs.time_alive(self.total_steps)
+        # reward += score_funcs.time_alive(self.total_steps)
 
         if self.render_mode == "human":
             img = self.grid.render(self.line_color_map)
@@ -362,14 +362,14 @@ class MetroMapEnv(gym.Env):
         return math.fsum(scores)
 
     def __find_relative_stop_angle_diffs(self) -> np.ndarray:
-        # if self.curr_stop_index == 0:
-        #     num_of_stops = len(self.real_stop_angles[self.curr_stop.id])
-        #     return np.pad(
-        #         np.array([0 for _ in range(num_of_stops)]),
-        #         ((0, self.max_stops - num_of_stops)),
-        #         mode="constant",
-        #         constant_values=(-1),
-        #     )
+        if self.curr_stop_index == 0:
+            num_of_stops = len(self.real_stop_angles[self.curr_stop.id])
+            return np.pad(
+                np.array([0 for _ in range(num_of_stops)]),
+                ((0, self.max_stops - num_of_stops)),
+                mode="constant",
+                constant_values=(-1),
+            )
 
         next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
         next_stop_real_angles_arr = list(

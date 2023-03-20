@@ -1,5 +1,5 @@
 import os
-from stable_baselines3 import DQN
+from sb3_contrib import QRDQN
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
 from src.environment import MetroMapEnv
@@ -8,7 +8,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 
 def main() -> None:
-    version = 9
+    version = 12
     timesteps = 2000000
     models_dir = f"./generated_models/RewardFunctions_v{version}"
     log_dir = f"./logs/RewardFunctions_v{version}_logs"
@@ -28,7 +28,7 @@ def main() -> None:
 
     eval_callback = EvalCallback(eval_monitor, best_model_save_path=models_dir, eval_freq=50000, n_eval_episodes=5)
 
-    model = DQN(
+    model = QRDQN(
         "MultiInputPolicy",
         monitor,
         tensorboard_log=log_dir,
