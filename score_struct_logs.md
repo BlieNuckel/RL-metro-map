@@ -60,7 +60,7 @@ The observation space currently holds the following information:
 
 Currently implements the following rewards and punishment:
 
-|Name|Reward function|
+|Name|Reward function change|
 |----|---------------|
 |Stop overlap|Punishment (-300) for placing a stop on top of another stop|
 |Out of bounds|Punishment (-500) for moving out of bounds|
@@ -80,7 +80,7 @@ _Model missing_
 &nbsp;
 
 ### **Reward Functions**
-|Name|Reward function|
+|Name|Reward function change|
 |----|---------------|
 |Line overlap|Now has a limit on how small a punishment it can give, clamping it to -60|
 |Minimize turns|Negative limit implemented, clamping it to -40|
@@ -101,7 +101,7 @@ Logs folder: RewardFunctions_v3\
 &nbsp;
 
 ### **Reward Functions**
-|Name|Reward function|
+|Name|Reward function change|
 |----|---------------|
 |Line overlap|Previous reward function incorrectly always punished the algorithm, as it was wrong. Updated to properly score lower when more than 1 crossing is done consecutively.|
 
@@ -127,7 +127,7 @@ Logs folder: RewardFunctions_v4\
 Updated overlap checking when stepping, to ensure that if a line is drawn on top of an existing stop it will receive the stop overlap punishment. Previously stop overlap was only detected upon placing the stop.
 
 ### **Reward Functions**
-|Name|Reward function|
+|Name|Reward function change|
 |----|---------------|
 |Stop overlap|Weight: 10|
 |Out of bounds|Weight: 10|
@@ -159,7 +159,7 @@ The "board" is no longer hashed and returned as an ndarray. Rather a list of pre
 Included a new field for the agent to know its current location. It already knew its current direction, but current location should help improve inference of overlap and out of bounds.
 
 ### **Reward Functions**
-|Name|Reward function|
+|Name|Reward function change|
 |----|---------------|
 |Line overlap|This will now result in termination if more than 1 overlap occurs consecutively. This is because crossings are allowed, but lines should not be able to run along one another|
 |Stop overlap|This will now result in termination if any stop is placed on top of an already existing stop or line. Similarly it terminates if a line is placed on an already placed stop|
@@ -191,7 +191,7 @@ The observation space now contains a list of the real-life stops' relative angle
 **Other Changes**
 
 ### **Reward Functions**
-|Name|Reward function|
+|Name|Reward function change|
 |----|---------------|
 |Line overlap|Weight increased from 10 to 20 to have a higher impact|
 |Stop overlap|Weight increased from 10 to 20 to have a higher impact|
@@ -267,3 +267,376 @@ The relative angles observation has been updated to only include the angles of t
 
 ### **Issues attempted to fix**
 The previous version continued to exhibit similar issues as previously, where it would not understand how to avoid collisions. Similarly it continued to draw exclusively straight lines with no regard for the positions the stops should have.
+
+
+
+## **Version 9** | [2814959](https://github.com/BlieNuckel/RL-metro-map/commit/2814959d73653e0d200a79ea5e43b987871b660a)
+
+Logs folder: RewardFunctions_v9\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|Relative stop position|Changed weight to 4|
+|Minimize turns|Changed weight to 10 because algorithm always draws squiggly lines|
+|Time alive|Changed weight to 1, as algorithm seems to rely on this reward to get a high reward|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v9_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v9_best_model.png)
+*Best generated map made throughout training of v9*
+
+The first time these models were run the images were not saved, but both reached much further than seen in these presented pictuers. The generated map by the best model was much akin to that of v8 with only the first line being drawn and squiggly lines, but with some stops being placed.
+
+### **Issues attempted to fix**
+v8 had better luck than previous versions in attempting to move away from simply straight lines. It seems, however, it has become overreliant on the "time alive" reward function, which was meant for previous versions to help learn avoiding death.
+
+There also seemed to be some inconsistencies with turns not being punished enough (squiggly lines), but this could be an artifact of the "stay alive" reward.
+
+
+
+## **Version 10** | []()
+
+Logs folder: RewardFunctions_v10\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|Relative stop positions|Changed allowed range with full reward to be +-90 degrees compared to real positions. This should hopefully mean that if a position is placed South in reality should preferably be placed SE, S, or SW in the drawing. Also updated the first stop of each line to always return an angle difference of 0, to promote placing it immediately.|
+|**Removed**||
+|Time alive|The reward was based on an increasing value over episode (not per-step), which caused it to be hugely impactful the further it stepped. Removed to test |
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v10_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v10_best_model.png)
+*Best generated map made throughout training of v10*
+
+
+### **Issues attempted to fix**
+Previous version showed very similar issues to v8, with only drawing a single line and this time adding a few stops. Similarly the "time alive" reward was skewing the resulting line because the reward grew disproportionately with every step taken.
+
+## **Version 1** | [069abb4](https://github.com/BlieNuckel/RL-metro-map/commit/069abb4f8ca4c5d6914eb7ff3a044908da601692)
+
+Logs folder: RewardFunctions_v1\
+_Model missing_
+
+&nbsp;
+
+### **Action Space**
+
+The action space currently supports 6 actions:
+
+- Move forward
+- Turn 45° left and move forward
+- Turn 90° left and move forward
+- Turn 45° right and move forward
+- Turn 90° right and move forward
+- Place stop and move forward
+
+### **Observation Space**
+
+The observation space currently holds the following information:
+
+- The board with the currently drawn fields
+- The stops remaining in the current line
+- The stops remaining in all the remaining lines
+- The remaining number of lines
+- The number of consecutive line overlaps
+- The number of turns within the last X steps
+- The max number of steps allowed (X in previous point)
+- The current direction of movement\
+
+### **State Space**
+
+### **Reward Functions**
+
+Currently implements the following rewards and punishment:
+
+|Name|Reward function change|
+|----|---------------|
+|Stop overlap|Punishment (-300) for placing a stop on top of another stop|
+|Out of bounds|Punishment (-500) for moving out of bounds|
+|Line overlap|Line overlapping punished exponentially harder, based on consecutive overlaps being drawn|
+|Stop adjacency|Rewards placing the same stops next to each other, punishes if placed anywhere else|
+|Relative Positions|Rewards relative angle to other stops with values between 0 and 1|
+|Stop distribution|Rewards stop distribution based on if the stop is placed a correct distance apart from the previous placed stop. Punishes if incorrect distance is used|
+|Minimize turns|Punishes turning too much based on a set "lookback" distance of moves|
+
+
+
+## **Version 2** | [665d78c](https://github.com/BlieNuckel/RL-metro-map/commit/665d78cdaf782f7f2370ceaa598fa6f94ee4eb47)
+
+Logs folder: RewardFunctions_v2\
+_Model missing_
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Line overlap|Now has a limit on how small a punishment it can give, clamping it to -60|
+|Minimize turns|Negative limit implemented, clamping it to -40|
+|**NEW**||
+|Promote spreading|Reward function meant to promote the lines spreading out to fill available space. Adds a reward that grows and settles at a max, based on the current distance from the starting position|
+
+### **Issues attempted to fix**
+The previous build had a reward directly tied to the length of the episode. This makes sense as the more steps it takes the more mistakes it will produce.
+
+Besides this all previous reward functions were clamped between 1 million and -1 million, but as some reward functions (line overlap, and minimize turns) went to -infinity it made for a poor reward function when values were clamped (as one good thing adding a rewrd wouldn't be visible).
+
+
+
+## **Version 3** | [5d2bd34](https://github.com/BlieNuckel/RL-metro-map/commit/5d2bd3404ce7acf97026e983cd9f1093b4f68878)
+
+Logs folder: RewardFunctions_v3\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Line overlap|Previous reward function incorrectly always punished the algorithm, as it was wrong. Updated to properly score lower when more than 1 crossing is done consecutively.|
+
+All reward functions are now scoring between 1 and -1.
+
+### **Issues attempted to fix**
+The previous version still had the issue of reward being tied directly to episode length (inversely), to a higher degree than expected. 
+
+The intention was to use pre-determined coefficients for each reward function to amplify the output (between 1 and -1) to have a bigger or smaller impact, but I forgot to connect the coefficients so they were unused while running.
+
+### **Generated Map**
+![generated map](./generated_maps/RewardFunctions_v3.png)
+
+
+
+## **Version 4** | [caf0bc8](https://github.com/BlieNuckel/RL-metro-map/commit/caf0bc808931b9e894fd3aacdb4a60f0446dd67b)
+
+Logs folder: RewardFunctions_v4\
+
+&nbsp;
+
+### **Other Changes**
+Updated overlap checking when stepping, to ensure that if a line is drawn on top of an existing stop it will receive the stop overlap punishment. Previously stop overlap was only detected upon placing the stop.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Stop overlap|Weight: 10|
+|Out of bounds|Weight: 10|
+|Line overlap|Weight: 8|
+|Stop adjacency|Weight: 5|
+|Relative positions|Weight: 8|
+|Stop distribution|Weight: 8|
+|Minimize turns|Weight: 3|
+|Promote spreading|Weight: 5|
+
+All reward functions now have their approrpriate weights assigned.
+
+### **Issues attempted to fix**
+The error of not using the defined coefficients in the reward functions has been fixed, so now each function actually has a different weight in scoring.
+
+The previous version featured some issues where stops and lines were placed on top of each other without it being an issue. This could be due to the weights not being present, but brought attention to an issue with overlaps only being detected if created in specific orders.
+
+
+
+## **Version 5** | [02feccf](https://github.com/BlieNuckel/RL-metro-map/commit/02feccf5bd2df0d32edbdb6cfdf264a1f9bff41b)
+
+Logs folder: RewardFunctions_v5\
+
+&nbsp;
+
+### **Observation Space**
+The "board" is no longer hashed and returned as an ndarray. Rather a list of previous actions with an adjustable max count is used to infer what fields are already taken by stops and lines. This may be a little too indirect and there may be a demand for somehow returning a sparse version of the board where stops and lines are still mapped to coordinates.
+
+Included a new field for the agent to know its current location. It already knew its current direction, but current location should help improve inference of overlap and out of bounds.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Line overlap|This will now result in termination if more than 1 overlap occurs consecutively. This is because crossings are allowed, but lines should not be able to run along one another|
+|Stop overlap|This will now result in termination if any stop is placed on top of an already existing stop or line. Similarly it terminates if a line is placed on an already placed stop|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v5.png)
+*Map generated from final model after 1,000,000 timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v5_best_model.png)
+*Map generated from best model after 700,000 timesteps*
+
+
+### **Issues attempted to fix**
+The previous version was training very slowly and had issues with replay buffer size, hence, the observation space restructure. The main issue this version aims to resolve besides faster train times was it would produce a model that would run in circles. This is believed to be because overlaps were only punished, but didn't end in termination.
+
+Besides this the previous version also had some meta issues, relating to the training data not being randomized. This version has updated systems for loading data from JSON files, which will allow us to introduce new training maps when T-Kartor provides them.
+
+
+
+## **Version 6** | [f724864](https://github.com/BlieNuckel/RL-metro-map/commit/f724864e39f782b4be136ae2e8675dce8a24ec85)
+
+Logs folder: RewardFunctions_v6\
+
+&nbsp;
+
+### **Observation Space**
+The observation space now contains a list of the real-life stops' relative angles, to hopefully help point the agent to how it's scored when it places stops (as this is scored relative to the real stops' relative angles).
+
+**Other Changes**
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Line overlap|Weight increased from 10 to 20 to have a higher impact|
+|Stop overlap|Weight increased from 10 to 20 to have a higher impact|
+|Out of bounds|Weight increased from 10 to 100 to have a higher impact|
+|Relative positions|Weight increased from 9 to 14. This allows it to be much more impactful than other rules, as it is not following this at all currently.|
+|Stop adjacency|Weight increased from 5 to 6|
+|Stop distribution|Weight decreased from 5 to 4.5|
+|Minimize turns|Weight increased from 3 to 3.5|
+|Promote spreading|Weight decreased from 5 to 1.5. We just want it to be a suggestive reward, it's nowhere near as required as the other rules|
+|**New**||
+|Finished line|Gives a large reward when a line is completely finished|
+|Time alive|Gives a scaled down linear reward with respect to the lifetime of the agent. This replaces "promote spreading" to helpfully encourage the agent to follow relative positions for placement learning, as opposed to just drawing straight lines outwards. Has a small weight of 1.5 to not override stop distribution to stay alive longer than needed.|
+|**Removed**||
+|Promote spreading|Removed in favor of "Time alive"|
+
+### **Generated Maps**
+![best_model](./generated_maps/RewardFunctions_v6_best_model.png)
+*Best model created throughout the training of v6.*
+
+### **Issues attempted to fix**
+The previous version had a hard time learning to understand it should not run into itself, as this is now a terminal state. It was so bad it didn't even manage to get to the point where it would complete entire maps, much less getting to the point where other issues were considered such as spacing between stops or attempting to place stops correctly relatively.
+
+Part of the issue might be the weights not being extreme enough on certain important aspects such as the relative positioning. Another issue could be that the list of previous actions doesn't appropriately suggest to the algorithm where it can and cannot go. Lastly it could be a lack of fore-sight (regarding stop placements), that results in the problem.
+
+
+
+## **Version 7** | [f724864](https://github.com/BlieNuckel/RL-metro-map/commit/f724864e39f782b4be136ae2e8675dce8a24ec85)
+
+Logs folder: RewardFunctions_v7\
+
+&nbsp;
+
+### **Other Changes**
+New hyper parameters tested to see if learning could be improved.
+
+learning_starts = 100000
+learning_rate = 1e-4
+target_update_interval = 1000
+train_freq = 4
+exploration_final_eps = 0.01
+
+These hyperparameters are not optimized, but taken from an optimization of the DQN algorithm on another environment.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v7_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v7_best_model.png)
+*Best generated map made throughout training of v7*
+
+### **Issues attempted to fix**
+The previous version would complete the run, but would not manage to achieve any turning. Hyper parameters were changed in an attempt to help with learning speeds.
+
+
+
+## **Version 8** | [0ce07ef](https://github.com/BlieNuckel/RL-metro-map/commit/0ce07ef83319fa45589268c23afd470646fa1a77)
+
+Logs folder: RewardFunctions_v8\
+
+&nbsp;
+
+### **Observation Space**
+The observation space has been updated in several ways. First off, the list of previous actions has been removed and replaced with 2 lists with 8 entries. These 8 entries describe in which directions of the current position there are lines and stops. A similar array of 8 entries has been added to describe the existence of out-of-bounds blocks next to the current position.
+
+The relative angles observation has been updated to only include the angles of the next stop to place to all other stops. For the stops that have not yet been placed on the map, a normalized position of the stop's real position is used to find the angle. This is meant to hopefully give the algorithm a way to "look ahead" when placing things.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v8_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v8_best_model.png)
+*Best generated map made throughout training of v8*
+
+### **Issues attempted to fix**
+The previous version continued to exhibit similar issues as previously, where it would not understand how to avoid collisions. Similarly it continued to draw exclusively straight lines with no regard for the positions the stops should have.
+
+
+
+## **Version 9** | [2814959](https://github.com/BlieNuckel/RL-metro-map/commit/2814959d73653e0d200a79ea5e43b987871b660a)
+
+Logs folder: RewardFunctions_v9\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|Relative stop position|Changed weight to 4|
+|Minimize turns|Changed weight to 10 because algorithm always draws squiggly lines|
+|Time alive|Changed weight to 1, as algorithm seems to rely on this reward to get a high reward|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v9_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v9_best_model.png)
+*Best generated map made throughout training of v9*
+
+The first time these models were run the images were not saved, but both reached much further than seen in these presented pictuers. The generated map by the best model was much akin to that of v8 with only the first line being drawn and squiggly lines, but with some stops being placed.
+
+### **Issues attempted to fix**
+v8 had better luck than previous versions in attempting to move away from simply straight lines. It seems, however, it has become overreliant on the "time alive" reward function, which was meant for previous versions to help learn avoiding death.
+
+There also seemed to be some inconsistencies with turns not being punished enough (squiggly lines), but this could be an artifact of the "stay alive" reward.
+
+
+
+## **Version 10** | [fe1460a](https://github.com/BlieNuckel/RL-metro-map/commit/fe1460a6265f8ec93a53a09f4eb7c0b10cc099e2)
+
+Logs folder: RewardFunctions_v10\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|Relative stop positions|Changed allowed range with full reward to be +-90 degrees compared to real positions. This should hopefully mean that if a position is placed South in reality should preferably be placed SE, S, or SW in the drawing. Also updated the first stop of each line to always return an angle difference of 0, to promote placing it immediately.|
+|**Removed**||
+|Time alive|The reward was based on an increasing value over episode (not per-step), which caused it to be hugely impactful the further it stepped. Removed to test |
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v10_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v10_best_model.png)
+*Best generated map made throughout training of v10*
+
+
+### **Issues attempted to fix**
+Previous version showed very similar issues to v8, with only drawing a single line and this time adding a few stops. Similarly the "time alive" reward was skewing the resulting line because the reward grew disproportionately with every step taken.
+
+
+
+## **Version 11** | [fe1460a](https://github.com/BlieNuckel/RL-metro-map/commit/fe1460a6265f8ec93a53a09f4eb7c0b10cc099e2)
+
+Logs folder: RewardFunctions_v11\
+
+&nbsp;
+
+**Other Changes**
+Used QRDQN algorithm for training, rather than DQN. Everything is the same as v10, to allow for more direct comparison.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v11_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v11_best_model.png)
+*Best generated map made throughout training of v11*
+
+
+### **Issues attempted to fix**
+No immediate issues, simply an investigation of QRDQN vs DQN.
