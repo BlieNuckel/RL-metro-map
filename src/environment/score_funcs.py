@@ -14,10 +14,10 @@ C_TIME_ALIVE = 1
 
 def line_overlap(consecutive_overlaps: int) -> float:
     if consecutive_overlaps <= 0:
-        return C_LINE_OVERLAP * 1
+        return C_LINE_OVERLAP * 0
 
     if consecutive_overlaps <= 1:
-        return C_LINE_OVERLAP * 0.5
+        return C_LINE_OVERLAP * -0.5
 
     return C_LINE_OVERLAP * -1
     # return C_LINE_OVERLAP * _clamp_min(-1, -(2 ** (2 * consecutive_overlaps - 3)) + 1)
@@ -46,11 +46,20 @@ def stop_relative_position(angle_difference: float) -> float:
         return C_STOP_RELATIVE_POS * (((math.e / 2) ** (-abs(angle_difference) + 24.75)) - 1)
 
 
-def minimize_turns(num_of_recent_turns: int, max_recent_turns: int) -> float:
-    if num_of_recent_turns <= 0:
-        return C_MINIMIZE_TURNS * 1  # 1 -> 0
+def minimize_turns(recent_turns_degrees: int) -> float:
+    if recent_turns_degrees <= 45:
+        return C_MINIMIZE_TURNS * 0
+    elif recent_turns_degrees <= 90:
+        return C_MINIMIZE_TURNS * -0.1
+    elif recent_turns_degrees <= 180:
+        return C_MINIMIZE_TURNS * -0.5
+    else:
+        return C_MINIMIZE_TURNS * -1
 
-    return C_MINIMIZE_TURNS * _clamp_min(-1, -(2 ** (num_of_recent_turns - max_recent_turns)) + 1)
+    # if recent_turns_degrees <= 0:
+    #     return C_MINIMIZE_TURNS * 1  # 1 -> 0
+
+    # return C_MINIMIZE_TURNS * _clamp_min(-1, -(2 ** (recent_turns_degrees)) + 1)
 
 
 # def promote_spreading(distance_from_start: float) -> float:

@@ -1,3 +1,4 @@
+from collections import deque
 import gymnasium as gym
 from gymnasium.core import RenderFrame
 from typing import SupportsFloat, Any
@@ -5,7 +6,6 @@ from src.models import Stop
 from src.exceptions import OutOfBoundsException
 from src.models.env_data import EnvDataDef
 from src.models.grid import Direction, Grid
-from src.models.turn_queue import TurnQueue
 from src.models.stop_adjacency import StopAdjacency
 from src.environment import score_funcs
 from src.environment.random_options import RandomOptions
@@ -105,7 +105,7 @@ class MetroMapEnv(gym.Env):
         self.stop_in_adjacent_fields: np.ndarray = np.zeros((8,))
         self.line_in_adjacent_fields: np.ndarray = np.zeros((8,))
         self.out_of_bounds_in_adjacent_fields: np.ndarray = np.zeros((8,))
-        self.recent_turns = TurnQueue(self.steps_to_count_turns)
+        self.recent_turns = deque([0 for _ in range(self.steps_to_count_turns)], maxlen=self.steps_to_count_turns)
 
         self.curr_line_index = 0
         self.lines_remaining_all = len(self.lines.keys()) - 1
@@ -177,11 +177,10 @@ class MetroMapEnv(gym.Env):
         observations["lines_remaining_all"] = np.array([self.lines_remaining_all], dtype=np.int16)
         observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int16)
         observations["num_of_consecutive_overlaps"] = np.array([self.consecutive_overlaps], dtype=np.int16)
-        observations["num_of_turns"] = np.array([self.recent_turns.num_of_turns()], dtype=np.int16)
+        observations["num_of_turns"] = np.array([sum(self.recent_turns)], dtype=np.int16)
         observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
-        observations["stop_angle_diff"] = np.array(self.__find_relative_stop_angle_diffs(), dtype=np.int16)
         observations["adjacent_to_same_stop"] = (
             1
             if self.stop_adjacency_map.is_first(self.curr_stop.id)
@@ -190,6 +189,14 @@ class MetroMapEnv(gym.Env):
         )
         observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
         observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
+
+        angle_diffs = self.__find_relative_stop_angle_diffs()
+        observations["stop_angle_diff"] = np.pad(
+            np.array(angle_diffs, dtype=np.int16),
+            ((0, self.max_stops - len(angle_diffs))),
+            mode="constant",
+            constant_values=(-1),
+        )
 
         return observations
 
@@ -208,7 +215,7 @@ class MetroMapEnv(gym.Env):
             return terminated, truncated, reward, info
 
         self.steps_since_stop += 1
-        self.recent_turns.non_turn()
+        self.recent_turns.append(0)
 
         if not self.grid.is_empty(self.curr_position):
             self.consecutive_overlaps += 1
@@ -239,14 +246,12 @@ class MetroMapEnv(gym.Env):
         reward: float = 0
         info: dict[str, Any] = {}
 
+        self.recent_turns.append(self.curr_direction.get_difference(new_direction))
         self.curr_direction = new_direction
-        # self.curr_position += self.curr_direction.value
-
-        self.recent_turns.turn()
 
         terminated, truncated, reward, info = self.__move_forward()
 
-        reward += score_funcs.minimize_turns(self.recent_turns.num_of_turns(), self.max_turns)
+        reward += score_funcs.minimize_turns(sum(self.recent_turns))
 
         return (terminated, truncated, reward, info)
 
@@ -350,26 +355,15 @@ class MetroMapEnv(gym.Env):
 
     def __score_relative_stop_positions(self, stop: Stop) -> float:
         scores: list[float] = []
-        for placed_stop in self.placed_stops:
-            if placed_stop == stop:
-                continue
-
-            real_angle = self.real_stop_angles[stop.id][placed_stop.id]
-            new_angle = stop.angle_to_stop(placed_stop)
-
-            scores.append(score_funcs.stop_relative_position(real_angle - new_angle))
+        for angle_diff in self.__find_relative_stop_angle_diffs():
+            scores.append(score_funcs.stop_relative_position(angle_diff))
 
         return math.fsum(scores)
 
-    def __find_relative_stop_angle_diffs(self) -> np.ndarray:
+    def __find_relative_stop_angle_diffs(self) -> list[float]:
         if self.curr_stop_index == 0:
             num_of_stops = len(self.real_stop_angles[self.curr_stop.id])
-            return np.pad(
-                np.array([0 for _ in range(num_of_stops)]),
-                ((0, self.max_stops - num_of_stops)),
-                mode="constant",
-                constant_values=(-1),
-            )
+            return [0 for _ in range(num_of_stops)]
 
         next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
         next_stop_real_angles_arr = list(
@@ -385,15 +379,7 @@ class MetroMapEnv(gym.Env):
 
             next_stop_curr_angles.append(stop.angle_to_stop(self.curr_position))
 
-        angle_diff_arr = np.array(
-            [abs(a_i - b_i) for a_i, b_i in zip(next_stop_real_angles_arr, next_stop_curr_angles)]
-        )
-        return np.pad(
-            angle_diff_arr,
-            ((0, self.max_stops - angle_diff_arr.size)),
-            mode="constant",
-            constant_values=(-1),
-        )
+        return [abs(a_i - b_i) for a_i, b_i in zip(next_stop_real_angles_arr, next_stop_curr_angles)]
 
     def __handle_end_of_curr_line(self) -> None:
         if not self.__end_of_curr_line():

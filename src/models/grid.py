@@ -72,7 +72,7 @@ class Grid(Generic[T]):
                     cv2.rectangle(
                         img,
                         (x * 2, y * 2),
-                        (x * 2 + 2, y * 2 + 2),
+                        (x * 2 + 1, y * 2 + 1),
                         (255, 255, 255),
                         thickness=cv2.FILLED,
                     )
@@ -81,7 +81,7 @@ class Grid(Generic[T]):
                         cv2.rectangle(
                             img,
                             (x * 2, y * 2),
-                            (x * 2 + 2, y * 2 + 2),
+                            (x * 2 + 1, y * 2 + 1),
                             color_map[field[0]],
                             thickness=cv2.FILLED,
                         )
@@ -191,6 +191,13 @@ class Direction(Enum):
 
     def get_90_left(self) -> "Direction":
         return self.__get_angle_by_index(-2)
+
+    def get_difference(self, direction: "Direction") -> int:
+        directions = Direction.list()
+        i = directions.index(self)
+        j = directions.index(direction)
+
+        return abs(i - j) * 45
 
     def __get_angle_by_index(self, index_offset: int) -> "Direction":
         directions = Direction.list()
