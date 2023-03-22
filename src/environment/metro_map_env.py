@@ -189,6 +189,7 @@ class MetroMapEnv(gym.Env):
         )
         observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
         observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
+        # observations["should_place_stop"] = np.array([1 if self.steps_since_stop >= self.stop_spacing else 0])
 
         angle_diffs = self.__find_relative_stop_angle_diffs()
         observations["stop_angle_diff"] = np.pad(
@@ -233,6 +234,7 @@ class MetroMapEnv(gym.Env):
             self.consecutive_overlaps = 0
 
         reward += score_funcs.line_overlap(self.consecutive_overlaps)
+        reward += score_funcs.stop_distribution(self.steps_since_stop, self.stop_spacing)
 
         self.grid[self.curr_position] = self.curr_line
 
@@ -299,7 +301,6 @@ class MetroMapEnv(gym.Env):
                 reward += score_funcs.stop_adjacency(is_stop_first)
                 self.__update_adjacency_map(stop_to_place)
 
-            reward += score_funcs.stop_distribution(self.steps_since_stop == self.stop_spacing)
             self.steps_since_stop = 0
 
             reward += self.__score_relative_stop_positions(stop_to_place)

@@ -32,11 +32,16 @@ def out_of_bounds() -> float:
 
 
 def stop_adjacency(stop_placed_adjacent: bool) -> float:
-    return C_STOP_ADJACENCY * (2 / 5 if stop_placed_adjacent else -1)  # 2/5 -> 1
+    return C_STOP_ADJACENCY * (1 if stop_placed_adjacent else -1)  # 2/5 -> 1
 
 
-def stop_distribution(distributed_correctly: bool) -> float:
-    return C_STOP_DISTRIBUTION * (2 / 5 if distributed_correctly else -1)  # 2/5 -> 1
+def stop_distribution(steps_since_stop: int, stop_distribution: int) -> float:
+    if steps_since_stop <= stop_distribution:
+        return C_STOP_DISTRIBUTION * 1
+    else:
+        return C_STOP_DISTRIBUTION * _clamp_min(-1, -steps_since_stop + stop_distribution + 1)
+
+    # return C_STOP_DISTRIBUTION * (2 / 5 if distributed_correctly else -1)  # 2/5 -> 1
 
 
 def stop_relative_position(angle_difference: float) -> float:
