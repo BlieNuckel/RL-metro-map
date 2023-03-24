@@ -42,6 +42,7 @@ class MetroMapEnv(gym.Env):
             "curr_direction": gym.spaces.Discrete(8),
             "curr_position": gym.spaces.Box(0, np.inf, (2,), dtype=np.int16),
             "stop_angle_diff": gym.spaces.Box(0, 360, (1,), dtype=np.float32),
+            "next_stop_direction": gym.spaces.Discrete(8),
             "adjacent_to_same_stop": gym.spaces.Discrete(2),
             # "should_place_stop": gym.spaces.Discrete(2),
         }
@@ -83,14 +84,14 @@ class MetroMapEnv(gym.Env):
                 options["env_data_def"], str
             ), "env_data_def key must be mapped to a valid name of a set of map data in train_data.json"
 
-            env_data = self.random_options.generate_env_data(data_name=options["env_data_def"])
+            env_data = self.random_options.generate_env_data(self.np_random, data_name=options["env_data_def"])
         else:
             if self.random_options is None:
                 raise ValueError(
                     "You must either pass options, or instantiate the environment with a path to training data."
                 )
 
-            env_data = self.random_options.generate_env_data(seed=seed)
+            env_data = self.random_options.generate_env_data(self.np_random)
 
         self.grid = Grid[str | Stop](env_data.width, env_data.height)
         self.lines = env_data.lines
@@ -192,9 +193,9 @@ class MetroMapEnv(gym.Env):
         observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
         observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
         # observations["should_place_stop"] = 1 if self.steps_since_stop >= self.stop_spacing else 0
-        observations["stop_angle_diff"] = np.array(
-            [np.mean(self.__find_relative_stop_angle_diffs()) % 360], dtype=np.float32
-        )
+        mean_angle_diff = np.mean(self.__find_relative_stop_angle_diffs(), dtype=float) % 360
+        observations["stop_angle_diff"] = np.array([mean_angle_diff], dtype=np.float32)
+        observations["next_stop_direction"] = int(Direction.from_degree(mean_angle_diff))
 
         return observations
 

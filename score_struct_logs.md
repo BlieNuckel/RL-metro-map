@@ -737,7 +737,7 @@ The system was simplified and now scores based on the angle of the stop to be pl
 |Name|Reward function change|
 |----|---------------|
 |Time Alive|Re-introduced, this time with a score based on the current timestep being <= total_stop_count * expected_stop_distribution. This rewards taking steps within the expected length of the run, but punishes going on for longer than needed.|
-|Relative stop positions|Was expanded to allow placement within 90 degree difference as opposed to only 45 degree placement.|
+|Relative stop positions|Was expanded to allow placement within 90 degree difference as opposed to only 45 degree placement. (Commit has this wrong, saying 22.5. 45 is what was really used for this version.)|
 |**New**||
 |Stop placed|A base reward for placing a stop to help avoid never placing stops.|
 
@@ -761,10 +761,21 @@ Logs folder: RewardFunctions_v15\
 
 &nbsp;
 
+### **Other Changes**
+A more appropriate use of random has been implemented when picking random input data and random input values (the few values that are at all randomized).
+
+### **Observation Space**
+Introduced new observation value "next_stop_direction", which transforms the mean angle currently used as a pointer for the next stop's position into a octidirectional direction. Hopefully this can help create a correlation better correlation between the amount of angle and the best direction to go. 
+
 ### **Reward Functions**
 |Name|Reward function change|
 |----|---------------|
+|Stop distribution|Weight changed to 8.5 as this was not previously respected.|
+|Stop adjacency|Weight changed to 10 to accomodate "stop distribution" weight increase.|
+|Stop relative positions|Weight changed to 6.5. Hopefully the small increase will help weigh it slightly higher and give higher corner resolution.
 
+Changed angle difference to only get max reward when within +-22.5 of real angle, to promote adhering more to real stop placements.|
+|Minimize turns|Weight changed to 3.5 to not fall too behind the newly increased weights for other stop related rewards. Has not been increased as much to achieve slightly higher corner resolution.|
 
 ### **Generated Maps**
 ![final generated map](./generated_maps/RewardFunctions_v16_final_model.png)

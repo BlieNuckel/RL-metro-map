@@ -199,6 +199,29 @@ class Direction(Enum):
             case _:
                 raise ValueError("The string value must be N, NE, E, SE, S, SW, W, or NW")
 
+    @staticmethod
+    def direction_is_not_combined(direction: "Direction") -> bool:
+        return Direction.list().index(direction) % 2 == 0
+
+    @staticmethod
+    def from_degree(degrees: float) -> "Direction":
+        """Returns the nearest direction based on ``degrees`` starting from 0 in the unit circle."""
+        direction_angles = {
+            0: Direction.E,
+            45: Direction.NE,
+            90: Direction.N,
+            135: Direction.NW,
+            180: Direction.W,
+            225: Direction.SW,
+            270: Direction.S,
+            315: Direction.SE,
+        }
+        for direction_angle in direction_angles.keys():
+            if direction_angle - 22.5 <= degrees <= direction_angle + 22.5:
+                return direction_angles[direction_angle]
+
+        raise ValueError(f"The degree value passed in ({degrees}) could not be parsed into a direction.")
+
     def __int__(self):
         return self.list().index(self)
 
@@ -222,7 +245,7 @@ class Direction(Enum):
         return abs(i - j) * 45
 
     def combine(self, direction: "Direction") -> "Direction":
-        assert Direction.__direction_is_not_combined(direction), "Cannot combine already combined direction."
+        assert Direction.direction_is_not_combined(direction), "Cannot combine already combined direction."
         assert self.__is_combineable(direction), "Cannot combine the two directions."
 
         if (self == Direction.N and direction == Direction.E) or (self == Direction.E and direction == Direction.N):
@@ -235,10 +258,6 @@ class Direction(Enum):
             return Direction.SW
 
         raise ValueError()
-
-    @staticmethod
-    def __direction_is_not_combined(direction: "Direction") -> bool:
-        return Direction.list().index(direction) % 2 == 0
 
     def __is_combineable(self, direction: "Direction") -> bool:
         return (

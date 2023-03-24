@@ -7,7 +7,7 @@ from src.data_handling.data_modifiers import (
 )
 from src.constants.data import STOP_NUMBER_COLUMN
 from pandas import DataFrame  # type: ignore
-from random import Random
+import numpy as np
 
 # import matplotlib.pyplot as plt  # type: ignore
 # from src.utils.list import flat_map
@@ -23,14 +23,14 @@ class RandomOptions:
         self.stops_parser = StopsParser()
         self.stops_parser.load_data("./src/data/stops.dbf")
 
-    def generate_env_data(self, seed: int | None = None, data_name: str | None = None) -> EnvData:
+    def generate_env_data(self, rand_gen: np.random.Generator | None = None, data_name: str | None = None) -> EnvData:
         if data_name is None:
-            random = Random(seed)
-            data_name, env_data_def = random.choice(list(self.data.items()))
+            assert rand_gen is not None, "np.random.Generator must be passed if no data_name is passed"
+            data_name, env_data_def = rand_gen.choice(np.array(list(self.data.items())), 1)
 
-            max_turns = random.randint(2, 10)
-            lookback_range = random.randint(10, 20)
-            stop_distribution = random.randint(2, 20)
+            max_turns = rand_gen.integers(2, 10)
+            lookback_range = rand_gen.integers(10, 20)
+            stop_distribution = rand_gen.integers(2, 20)
         else:
             env_data_def = self.data[data_name]
 
