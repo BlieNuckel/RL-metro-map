@@ -1,3 +1,4 @@
+import math
 from src.models.coordinates2d import Coordinates2d
 from typing import TypeVar, Generic
 from src.exceptions import OutOfBoundsException
@@ -14,7 +15,7 @@ class Grid(Generic[T]):
     """
     2D array container that provides (x,y) access instead of always having to access it by (y,x)
 
-    Each field is made of a list too, and assignemnt automatically appends to the list, instead of overwriting
+    Each field is made of a list, and assignemnt automatically appends to the list, instead of overwriting
     """
 
     def __init__(self, width: int, height: int) -> None:
@@ -57,6 +58,9 @@ class Grid(Generic[T]):
 
         return 0 <= position.x < self.width and 0 <= position.y < self.height
 
+    def expand_grid(self, direction: "Direction") -> None:
+        pass
+
     def render(self, color_map: dict[str, tuple[int, int, int]]) -> np.ndarray:
 
         # cv2.imshow("a", self.img)
@@ -92,6 +96,24 @@ class Grid(Generic[T]):
 
         return img
 
+    def __direction_of_outside_bounds(self, position: Coordinates2d) -> "Direction":
+        out_of_bounds_directions: list[Direction] = []
+
+        if position.x >= self.width:
+            out_of_bounds_directions.append(Direction.E)
+        elif position.x < 0:
+            out_of_bounds_directions.append(Direction.W)
+
+        if position.y >= self.height:
+            out_of_bounds_directions.append(Direction.S)
+        elif position.y < 0:
+            out_of_bounds_directions.append(Direction.N)
+
+        if len(out_of_bounds_directions) > 1:
+            return out_of_bounds_directions[0].combine(out_of_bounds_directions[1])
+
+        return out_of_bounds_directions[0]
+
     def __getitem__(self, key: tuple[int, int] | Coordinates2d) -> list[T]:
         assert (isinstance(key, tuple) and len(key) == 2) or isinstance(
             key, Coordinates2d
@@ -104,7 +126,7 @@ class Grid(Generic[T]):
             raise OutOfBoundsException(key)
 
         try:
-            return self.grid[key.y][key.x]
+            return self.grid[math.floor(key.y)][math.floor(key.x)]
         except IndexError:
             print("Index error occurred in grid, with following data:")
             print(f"Position: {key}")
@@ -124,7 +146,7 @@ class Grid(Generic[T]):
             raise OutOfBoundsException(key)
 
         try:
-            self.grid[key.y][key.x].append(value)
+            self.grid[math.floor(key.y)][math.floor(key.x)].append(value)
         except IndexError:
             print("Index error occurred in grid, with following data:")
             print(f"Position: {key}")
@@ -198,6 +220,30 @@ class Direction(Enum):
         j = directions.index(direction)
 
         return abs(i - j) * 45
+
+    def combine(self, direction: "Direction") -> "Direction":
+        assert Direction.__direction_is_not_combined(direction), "Cannot combine already combined direction."
+        assert self.__is_combineable(direction), "Cannot combine the two directions."
+
+        if (self == Direction.N and direction == Direction.E) or (self == Direction.E and direction == Direction.N):
+            return Direction.NE
+        if (self == Direction.N and direction == Direction.W) or (self == Direction.W and direction == Direction.N):
+            return Direction.NW
+        if (self == Direction.S and direction == Direction.E) or (self == Direction.E and direction == Direction.S):
+            return Direction.SE
+        if (self == Direction.S and direction == Direction.W) or (self == Direction.W and direction == Direction.S):
+            return Direction.SW
+
+        raise ValueError()
+
+    @staticmethod
+    def __direction_is_not_combined(direction: "Direction") -> bool:
+        return Direction.list().index(direction) % 2 == 0
+
+    def __is_combineable(self, direction: "Direction") -> bool:
+        return (
+            (self == Direction.N or self == Direction.S) and (direction == Direction.W or direction == Direction.E)
+        ) or ((self == Direction.E or self == Direction.W) and (direction == Direction.N or direction == Direction.S))
 
     def __get_angle_by_index(self, index_offset: int) -> "Direction":
         directions = Direction.list()

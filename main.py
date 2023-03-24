@@ -8,7 +8,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 
 def main() -> None:
-    version = 14
+    version = 15
     timesteps = 2000000
     models_dir = f"./generated_models/RewardFunctions_v{version}"
     log_dir = f"./logs/RewardFunctions_v{version}_logs"

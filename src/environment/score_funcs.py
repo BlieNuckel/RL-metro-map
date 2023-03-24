@@ -1,14 +1,15 @@
 import math
 
-C_LINE_OVERLAP = 20
-C_STOP_OVERLAP = 20
-C_OUT_OF_BOUNDS = 20
+C_LINE_OVERLAP = 100
+C_STOP_OVERLAP = 100
+C_OUT_OF_BOUNDS = 100
 C_STOP_ADJACENCY = 7
 C_STOP_RELATIVE_POS = 6
 C_STOP_DISTRIBUTION = 6.5
-C_MINIMIZE_TURNS = 10
+C_MINIMIZE_TURNS = 3
+C_STOP_PLACED = 5
 C_PROMOTE_SPREADING = 1.5
-C_FINISHED = 20
+C_FINISHED = 50
 C_TIME_ALIVE = 1
 
 
@@ -44,6 +45,10 @@ def stop_distribution(steps_since_stop: int, stop_distribution: int) -> float:
     # return C_STOP_DISTRIBUTION * (2 / 5 if distributed_correctly else -1)  # 2/5 -> 1
 
 
+def stop_placed() -> float:
+    return C_STOP_PLACED * 1
+
+
 def stop_relative_position(angle_difference: float) -> float:
     if abs(angle_difference) < 22.5:
         return C_STOP_RELATIVE_POS * 1
@@ -74,11 +79,11 @@ def minimize_turns(recent_turns_degrees: int) -> float:
 #     return C_PROMOTE_SPREADING * _clamp_min(0, 0.2 * math.log10(distance_from_start))
 
 
-# def time_alive(time_step: int) -> float:
-#     if time_step <= 0:
-#         return C_TIME_ALIVE * 0
+def time_alive(time_step: int, total_stop_count: int, stop_distribution: int) -> float:
+    if time_step <= total_stop_count * stop_distribution:
+        return C_TIME_ALIVE * _clamp_max(1, 1 * time_step)
 
-#     return C_TIME_ALIVE * _clamp_max(1, 0.1 * time_step)
+    return C_TIME_ALIVE * -1
 
 
 def finished() -> float:

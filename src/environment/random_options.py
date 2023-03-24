@@ -4,13 +4,13 @@ from src.data_handling.data_modifiers import (
     remove_duplicate_stops,
     dataframe_as_routes_and_stops,
     extract_stop_angle_mappings,
-    normalize_stop_positions,
 )
 from src.constants.data import STOP_NUMBER_COLUMN
-from src.models import Stop
 from pandas import DataFrame  # type: ignore
-from collections import deque
 from random import Random
+
+# import matplotlib.pyplot as plt  # type: ignore
+# from src.utils.list import flat_map
 
 
 class RandomOptions:
@@ -43,17 +43,29 @@ class RandomOptions:
 
         stop_angle_mapping = extract_stop_angle_mappings(routes_dict)
 
-        routes_dict_deque: dict[str, deque[Stop]] = dict(
-            [
-                (key, deque(normalize_stop_positions(value, (0, env_data_def.width), (0, env_data_def.height))))
-                for key, value in routes_dict.items()
-            ]
-        )
+        # normalized_routes: dict[str, list[Stop]] = dict(
+        #     [
+        #         (key, normalize_stop_positions(value, (0, env_data_def.width), (0, env_data_def.height)))
+        #         for key, value in routes_dict.items()
+        #     ]
+        # )
+
+        # all_stops = flat_map(routes_dict_deque.values())
+        # plt.subplot(211)
+        # plt.scatter([stop.position.x for stop in all_stops], [stop.position.y for stop in all_stops])
+
+        # plt.subplot(212)
+        # plt.scatter(
+        #     [stop.get_original_position().x for stop in all_stops],
+        #     [stop.get_original_position().y for stop in all_stops],
+        # )
+
+        # plt.show()
 
         return EnvData(
             env_data_def.width,
             env_data_def.height,
-            routes_dict_deque,
+            routes_dict,
             env_data_def.starting_positions,
             stop_angle_mapping,
             env_data_def.line_color_map,

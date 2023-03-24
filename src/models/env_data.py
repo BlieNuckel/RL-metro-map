@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from collections import deque
 from src.models import Coordinates2d, Stop, Direction
 from typing import Any
 
@@ -8,7 +7,7 @@ from typing import Any
 class EnvData:
     width: int
     height: int
-    lines: dict[str, deque[Stop]]
+    lines: dict[str, list[Stop]]
     starting_positions: dict[str, tuple[Coordinates2d, Direction]]
     stop_angle_mapping: dict[str, dict[str, float]]
     line_color_map: dict[str, tuple[int, int, int]]

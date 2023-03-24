@@ -11,7 +11,6 @@ from src.environment import score_funcs
 from src.environment.random_options import RandomOptions
 from src.utils.list import flat_map
 import numpy as np
-import math
 import cv2  # type: ignore
 
 
@@ -37,15 +36,17 @@ class MetroMapEnv(gym.Env):
             "stops_remaining_all": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "num_of_consecutive_overlaps": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
-            "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            # "max_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "stop_spacing": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "steps_since_stop": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
             "curr_position": gym.spaces.Box(0, np.inf, (2,), dtype=np.int16),
-            "stop_angle_diff": gym.spaces.Box(-1, 360, (max_stops,)),
+            "stop_angle_diff": gym.spaces.Box(0, 360, (1,), dtype=np.float32),
             "adjacent_to_same_stop": gym.spaces.Discrete(2),
+            # "should_place_stop": gym.spaces.Discrete(2),
         }
         self.observation_space = gym.spaces.Dict(spaces)
+        self.compare_radius = 50
         self.render_mode = render_mode
 
     @property
@@ -98,6 +99,7 @@ class MetroMapEnv(gym.Env):
         self.max_turns, self.steps_to_count_turns = env_data.turn_limits
         self.starting_positions = env_data.starting_positions
         self.line_color_map = env_data.line_color_map
+        self.total_num_stops = len(flat_map(self.lines.values()))
 
         self.steps_since_stop = 0
         self.consecutive_overlaps = 0
@@ -144,12 +146,12 @@ class MetroMapEnv(gym.Env):
                 pass
 
         self.total_steps += 1
-        # reward += score_funcs.time_alive(self.total_steps)
+        reward += score_funcs.time_alive(self.total_steps, self.total_num_stops, self.stop_spacing)
 
         if self.render_mode == "human":
             img = self.grid.render(self.line_color_map)
             cv2.imshow("a", img)
-            cv2.waitKey(1)
+            cv2.waitKey(0)
 
         return self.__compile_observations(), reward, terminated, truncated, info
 
@@ -178,7 +180,7 @@ class MetroMapEnv(gym.Env):
         observations["stops_remaining_all"] = np.array([self.stops_remaining_all], dtype=np.int16)
         observations["num_of_consecutive_overlaps"] = np.array([self.consecutive_overlaps], dtype=np.int16)
         observations["num_of_turns"] = np.array([sum(self.recent_turns)], dtype=np.int16)
-        observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
+        # observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
         observations["adjacent_to_same_stop"] = (
@@ -189,14 +191,9 @@ class MetroMapEnv(gym.Env):
         )
         observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
         observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
-        # observations["should_place_stop"] = np.array([1 if self.steps_since_stop >= self.stop_spacing else 0])
-
-        angle_diffs = self.__find_relative_stop_angle_diffs()
-        observations["stop_angle_diff"] = np.pad(
-            np.array(angle_diffs, dtype=np.int16),
-            ((0, self.max_stops - len(angle_diffs))),
-            mode="constant",
-            constant_values=(-1),
+        # observations["should_place_stop"] = 1 if self.steps_since_stop >= self.stop_spacing else 0
+        observations["stop_angle_diff"] = np.array(
+            [np.mean(self.__find_relative_stop_angle_diffs()) % 360], dtype=np.float32
         )
 
         return observations
@@ -223,11 +220,13 @@ class MetroMapEnv(gym.Env):
 
             if isinstance(self.grid[self.curr_position][0], Stop):
                 reward += score_funcs.stop_overlap()
+                terminated = True
 
             if self.consecutive_overlaps > 1:
                 reward += score_funcs.line_overlap(self.consecutive_overlaps)
                 terminated = True
 
+            if terminated:
                 return terminated, truncated, reward, info
 
         else:
@@ -289,6 +288,8 @@ class MetroMapEnv(gym.Env):
             self.grid[self.curr_position] = stop_to_place
             stop_to_place.position = self.curr_position
 
+            reward += score_funcs.stop_placed()
+
             is_stop_first = self.stop_adjacency_map.is_first(stop_to_place.id)
 
             if not is_stop_first:
@@ -303,7 +304,7 @@ class MetroMapEnv(gym.Env):
 
             self.steps_since_stop = 0
 
-            reward += self.__score_relative_stop_positions(stop_to_place)
+            reward += self.__score_relative_stop_positions()
             self.placed_stops.append(stop_to_place)
 
             self.__update_line_and_stop_adjacent()
@@ -354,33 +355,65 @@ class MetroMapEnv(gym.Env):
 
             self.line_in_adjacent_fields[i] = 1
 
-    def __score_relative_stop_positions(self, stop: Stop) -> float:
-        scores: list[float] = []
-        for angle_diff in self.__find_relative_stop_angle_diffs():
-            scores.append(score_funcs.stop_relative_position(angle_diff))
+    def __score_relative_stop_positions(self) -> float:
+        return score_funcs.stop_relative_position(np.mean(self.__find_relative_stop_angle_diffs(), dtype=float))
+        # scores: list[float] = []
+        # for angle_diff in self.__find_relative_stop_angle_diffs():
+        #     scores.append(score_funcs.stop_relative_position(angle_diff))
 
-        return math.fsum(scores)
+        # return math.fsum(scores)
 
     def __find_relative_stop_angle_diffs(self) -> list[float]:
-        if self.curr_stop_index == 0:
+        # stop_ids_in_radius, stops_in_radius = self.__get_nearby_stops(self.compare_radius, self.placed_stops)
+
+        # x_change_ratio = self.curr_stop.position.x / self.curr_stop.get_original_position().x
+        # y_change_ratio = self.curr_stop.position.y / self.curr_stop.get_original_position().y
+
+        if len(self.placed_stops) == 0:
             num_of_stops = len(self.real_stop_angles[self.curr_stop.id])
             return [0 for _ in range(num_of_stops)]
 
-        next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
-        next_stop_real_angles_arr = list(
-            {key: next_stop_real_angles_dict[key] for key in sorted(next_stop_real_angles_dict)}.values()
-        )
-        next_stop_curr_angles: list[float] = []
+        real_relative_angles = {
+            k: v
+            for k, v in self.real_stop_angles[self.curr_stop.id].items()
+            if k in [stop.id for stop in self.placed_stops]
+        }.values()
+        new_relative_angles = [stop.angle_to_stop(self.curr_position) for stop in self.placed_stops]
 
-        list_of_all_stops = flat_map(self.lines.values())
+        # next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
+        # next_stop_real_angles_arr = list(
+        #     {key: next_stop_real_angles_dict[key] for key in sorted(next_stop_real_angles_dict)}.values()
+        # )
+        # next_stop_curr_angles: list[float] = []
 
-        for stop in sorted(list_of_all_stops, key=lambda item: item.id):
-            if stop == self.curr_stop:
+        # list_of_all_stops = flat_map(self.lines.values())
+
+        # for stop in sorted(list_of_all_stops, key=lambda item: item.id):
+        #     if stop == self.curr_stop:
+        #         continue
+
+        #     next_stop_curr_angles.append(stop.angle_to_stop(self.curr_position))
+
+        angle_diffs = [abs(a_i - b_i) for a_i, b_i in zip(real_relative_angles, new_relative_angles)]
+
+        return angle_diffs
+
+    def __get_nearby_stops(self, radius: float, stops: list[Stop]) -> tuple[list[str], list[Stop]]:
+        found_stops: list[Stop] = []
+        found_stop_ids: list[str] = []
+
+        for i, stop in enumerate(stops):
+            if i == 0:
                 continue
 
-            next_stop_curr_angles.append(stop.angle_to_stop(self.curr_position))
+            if stop.id == self.curr_stop:
+                continue
 
-        return [abs(a_i - b_i) for a_i, b_i in zip(next_stop_real_angles_arr, next_stop_curr_angles)]
+            if self.curr_stop.position.distance_to(stop.position) <= radius:
+                found_stops.append(stop)
+                found_stop_ids.append(stop.id)
+
+        return found_stop_ids, found_stops
 
     def __handle_end_of_curr_line(self) -> None:
         if not self.__end_of_curr_line():

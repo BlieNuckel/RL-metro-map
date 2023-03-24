@@ -5,16 +5,16 @@ import math
 
 @dataclass(frozen=True)
 class Coordinates2d:
-    x: int
-    y: int
+    x: float
+    y: float
 
-    def to_tuple(self) -> tuple[int, int]:
+    def to_tuple(self) -> tuple[float, float]:
         return (self.x, self.y)
 
     def distance_to(self, position: "Coordinates2d") -> float:
         return math.sqrt((self.x - position.x) ** 2 + (self.y - position.y) ** 2)
 
-    def __add__(self, value: Union[tuple[int, int], "Coordinates2d"]) -> "Coordinates2d":
+    def __add__(self, value: Union[tuple[float, float], "Coordinates2d"]) -> "Coordinates2d":
         assert isinstance(value, tuple) or isinstance(value, Coordinates2d), (
             f"{value.__class__.__name__} cannot be added to Coordinates2d."
             + "Use a tuple with 2 ints or another Coordinates2d."
