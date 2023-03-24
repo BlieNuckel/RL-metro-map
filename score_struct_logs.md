@@ -576,6 +576,7 @@ Logs folder: RewardFunctions_v9\
 
 ### **Reward Functions**
 |Name|Reward function change|
+|----|---------------|
 |Relative stop position|Changed weight to 4|
 |Minimize turns|Changed weight to 10 because algorithm always draws squiggly lines|
 |Time alive|Changed weight to 1, as algorithm seems to rely on this reward to get a high reward|
@@ -604,6 +605,7 @@ Logs folder: RewardFunctions_v10\
 
 ### **Reward Functions**
 |Name|Reward function change|
+|----|---------------|
 |Relative stop positions|Changed allowed range with full reward to be +-90 degrees compared to real positions. This should hopefully mean that if a position is placed South in reality should preferably be placed SE, S, or SW in the drawing. Also updated the first stop of each line to always return an angle difference of 0, to promote placing it immediately.|
 |**Removed**||
 |Time alive|The reward was based on an increasing value over episode (not per-step), which caused it to be hugely impactful the further it stepped. Removed to test |
@@ -640,3 +642,139 @@ Used QRDQN algorithm for training, rather than DQN. Everything is the same as v1
 
 ### **Issues attempted to fix**
 No immediate issues, simply an investigation of QRDQN vs DQN.
+
+
+
+## **Version 12** | [3a0df90](https://github.com/BlieNuckel/RL-metro-map/commit/3a0df904f4a2aab86413264635112f0a59c44872)
+
+Logs folder: RewardFunctions_v12\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Minimize turns|Changed allowed turn from +-90 to +-22.5, as it was too lenient, when stops only had to be placed North or South of each other.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v12_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v12_best_model.png)
+*Best generated map made throughout training of v12*
+
+
+### **Issues attempted to fix**
+Was still producing too straight lines, when it really needed to be making some more turns.
+
+
+
+## **Version 13** | [d3a808a](https://github.com/BlieNuckel/RL-metro-map/commit/d3a808af2e860c49ade95c24369ba51431b96749)
+
+Logs folder: RewardFunctions_v13\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Relative stop positions|Changed allowed turn from +-90 to +-22.5, as it was too lenient, when stops only had to be placed North or South of each other.|
+|Minimize turns|Changed score function to be based on the total angle of turns in the previous X steps, rather than the number of turns. Hopefully this will help avoid things like loops or 180 turns.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v13_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v13_best_model.png)
+*Best generated map made throughout training of v13*
+
+
+### **Issues attempted to fix**
+Previous version traveled far in straight lines. This was likely an issue caused by the positive reinforcement given by "minimize turns" where the algorithm would receive a positive reward every time it didn't turn.
+
+
+
+## **Version 14** | [4b5fb22](https://github.com/BlieNuckel/RL-metro-map/commit/4b5fb2219aa334e0fe09732ab745532ee6bdcb80)
+
+Logs folder: RewardFunctions_v14\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Stop adjacency|Changed to giving 1 when placing correctly instead of 2/5.|
+|Stop distribution|Changed to reward on every step the algorithm is within the target stop distribution. The reward will then fall liniearly on any step over this to allow for small variations, to achieve adjacency.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v14_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v14_best_model.png)
+*Best generated map made throughout training of v14*
+
+
+### **Issues attempted to fix**
+Previous version ended its training as fast as possible, because rewards are too punishing. Stops need to be forced to be placed to receive decent rewards. This will hopefully train it to find a better way of placing the stops to get more points.
+
+
+
+## **Version 15** | [1941cc4](https://github.com/BlieNuckel/RL-metro-map/commit/1941cc4043f89cef4def660c8bd939297922b8e2)
+
+Logs folder: RewardFunctions_v15\
+
+&nbsp;
+
+### **General Notes**
+This version has been through many revisions as results were consistently showing the same signs as seen in previous versions. As such this version is actually the culmination of 4-5 failed versions that in the end amounted to no new information or patterns being discovered.
+
+### **Observation Space**
+The major change that made this version perform better than the previous, was an optimization of the use of the angles. It was discovered that scaling the stop distribution down was done incorrectly and generally wasn't sustainable in most cases.
+
+The system was simplified and now scores based on the angle of the stop to be placed to all other already placed stops. This does mean there's a lack of "future" insight, however, it does provide better results than attempting to use scaling for "future" insight.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Time Alive|Re-introduced, this time with a score based on the current timestep being <= total_stop_count * expected_stop_distribution. This rewards taking steps within the expected length of the run, but punishes going on for longer than needed.|
+|Relative stop positions|Was expanded to allow placement within 90 degree difference as opposed to only 45 degree placement.|
+|**New**||
+|Stop placed|A base reward for placing a stop to help avoid never placing stops.|
+
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v15_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v15_best_model.png)
+*Best generated map made throughout training of v15*
+
+
+### **Issues attempted to fix**
+v14 returned to the pattern of ending each episode as fast as possible. This is most likely due to life being too punishing and it already reaching a decent score out of the gate. I am at a bit of a loss as to how to go about changing its behaviour withuot re-introducing some of the previous issues where it would farm rewards in different ways.
+
+
+
+## **Version 16** | []()
+
+Logs folder: RewardFunctions_v15\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v16_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v16_best_model.png)
+*Best generated map made throughout training of v16*
+
+
+### **Issues attempted to fix**
+v15 brought an increase in stop placement accuracy, but still exhibits some behaviors that should be reconsidered.
+
+Stop distancing is still not following appropriate spacing rules, relative stop positioning doesn't quite achieve the level of distinguishing that could be wanted, and the lines that do turn, seem to do so in weird/unexpected angles or directions.
