@@ -755,9 +755,9 @@ v14 returned to the pattern of ending each episode as fast as possible. This is 
 
 
 
-## **Version 16** | []()
+## **Version 16** | [09643d6](https://github.com/BlieNuckel/RL-metro-map/commit/09643d694ac146184872855a2c8b696c99162f85)
 
-Logs folder: RewardFunctions_v15\
+Logs folder: RewardFunctions_v16\
 
 &nbsp;
 
