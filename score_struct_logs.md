@@ -726,7 +726,7 @@ Logs folder: RewardFunctions_v15\
 &nbsp;
 
 ### **General Notes**
-This version has been through many revisions as results were consistently showing the same signs as seen in previous versions. As such this version is actually the culmination of 4-5 failed versions that in the end amounted to no new information or patterns being discovered.
+This version has been through many revisions as results were consistently showing the same signs as seen in previous versions. As such this version is actually the culmination of 4-5 failed versions that in the end amounted to the version documented here. The subversions were interesting, but often revealed nothing new in terms of relationships between rewards and outcomes.
 
 ### **Observation Space**
 The major change that made this version perform better than the previous, was an optimization of the use of the angles. It was discovered that scaling the stop distribution down was done incorrectly and generally wasn't sustainable in most cases.
@@ -765,7 +765,7 @@ Logs folder: RewardFunctions_v16\
 A more appropriate use of random has been implemented when picking random input data and random input values (the few values that are at all randomized).
 
 ### **Observation Space**
-Introduced new observation value "next_stop_direction", which transforms the mean angle currently used as a pointer for the next stop's position into a octidirectional direction. Hopefully this can help create a correlation better correlation between the amount of angle and the best direction to go. 
+Introduced new observation value "next_stop_direction", which transforms the mean angle currently used as a pointer for the next stop's position into a octidirectional direction. Hopefully this can help create a better correlation between the amount of angle and the best direction to go.
 
 ### **Reward Functions**
 |Name|Reward function change|
@@ -789,3 +789,25 @@ Changed angle difference to only get max reward when within +-22.5 of real angle
 v15 brought an increase in stop placement accuracy, but still exhibits some behaviors that should be reconsidered.
 
 Stop distancing is still not following appropriate spacing rules, relative stop positioning doesn't quite achieve the level of distinguishing that could be wanted, and the lines that do turn, seem to do so in weird/unexpected angles or directions.
+
+
+
+## **Version 17** | []()
+
+Logs folder: RewardFunctions_v17\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v17_final_model.png)
+*Final generated map at 2 million timesteps*
+
+![best generated map](./generated_maps/RewardFunctions_v17_best_model.png)
+*Best generated map made throughout training of v17*
+
+
+### **Issues attempted to fix**

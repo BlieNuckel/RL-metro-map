@@ -3,9 +3,12 @@ import math
 
 
 def angle_between_points(point1: Coordinates2d, point2: Coordinates2d) -> float:
-    angle = math.degrees(math.atan2(point1.y - point2.y, point1.x - point2.x))
 
-    return angle % 360
+    angle = math.degrees(
+        math.atan2(-point1.y + point1.y, point1.x - point1.x) - math.atan2(-point2.y + point1.y, point2.x - point1.x)
+    )
+
+    return -angle % 360
 
 
 def negative_mod(a: float, b: float) -> float:

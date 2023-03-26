@@ -215,6 +215,7 @@ class Direction(Enum):
             225: Direction.SW,
             270: Direction.S,
             315: Direction.SE,
+            360: Direction.E,
         }
         for direction_angle in direction_angles.keys():
             if direction_angle - 22.5 <= degrees <= direction_angle + 22.5:

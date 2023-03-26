@@ -6,8 +6,15 @@ from src.environment.metro_map_env import MetroMapEnv
 import cv2  # type: ignore
 import sys
 
+# from src.models.coordinates2d import Coordinates2d
+# from src.models.grid import Direction
+# from src.utils.math import angle_between_points
+
 
 def main() -> None:
+    # angle = angle_between_points(Coordinates2d(140, 7), Coordinates2d(180, 50))
+    # direction = Direction.from_degree(angle)
+    # print(angle, direction)
     training_data = load_training_data("./src/data/train_data.json")
 
     env = MetroMapEnv(training_data=training_data, render_mode="rgb_array")

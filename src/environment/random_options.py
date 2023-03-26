@@ -26,11 +26,12 @@ class RandomOptions:
     def generate_env_data(self, rand_gen: np.random.Generator | None = None, data_name: str | None = None) -> EnvData:
         if data_name is None:
             assert rand_gen is not None, "np.random.Generator must be passed if no data_name is passed"
-            data_name, env_data_def = rand_gen.choice(np.array(list(self.data.items())), 1)
+            rand_idx = rand_gen.integers(0, len(self.data))
+            data_name, env_data_def = list(self.data.items())[rand_idx]
 
-            max_turns = rand_gen.integers(2, 10)
-            lookback_range = rand_gen.integers(10, 20)
-            stop_distribution = rand_gen.integers(2, 20)
+            max_turns = rand_gen.integers(2, 10, dtype=int)
+            lookback_range = rand_gen.integers(4, 10, dtype=int)
+            stop_distribution = rand_gen.integers(2, 10, dtype=int)
         else:
             env_data_def = self.data[data_name]
 
