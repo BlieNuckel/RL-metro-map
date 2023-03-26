@@ -755,7 +755,7 @@ v14 returned to the pattern of ending each episode as fast as possible. This is 
 
 
 
-## **Version 16** | [09643d6](https://github.com/BlieNuckel/RL-metro-map/commit/09643d694ac146184872855a2c8b696c99162f85)
+## **Version 16** | [ed4b58b](https://github.com/BlieNuckel/RL-metro-map/commit/ed4b58bc923fe0be32341af8a235493c7503614a)
 
 Logs folder: RewardFunctions_v16\
 
@@ -772,10 +772,10 @@ Introduced new observation value "next_stop_direction", which transforms the mea
 |----|---------------|
 |Stop distribution|Weight changed to 8.5 as this was not previously respected.|
 |Stop adjacency|Weight changed to 10 to accomodate "stop distribution" weight increase.|
-|Stop relative positions|Weight changed to 6.5. Hopefully the small increase will help weigh it slightly higher and give higher corner resolution.
-
-Changed angle difference to only get max reward when within +-22.5 of real angle, to promote adhering more to real stop placements.|
+|Stop relative positions|Weight changed to 6.5. Hopefully the small increase will help weigh it slightly higher and give higher corner resolution.|
 |Minimize turns|Weight changed to 3.5 to not fall too behind the newly increased weights for other stop related rewards. Has not been increased as much to achieve slightly higher corner resolution.|
+
+Changed angle difference to only get max reward when within +-22.5 of real angle, to promote adhering more to real stop placements.
 
 ### **Generated Maps**
 ![final generated map](./generated_maps/RewardFunctions_v16_final_model.png)
@@ -792,15 +792,22 @@ Stop distancing is still not following appropriate spacing rules, relative stop 
 
 
 
-## **Version 17** | []()
+## **Version 17** | [8a397ad](https://github.com/BlieNuckel/RL-metro-map/commit/8a397ad769ae579b6351e4b263cfdbdaf94b05eb)
 
 Logs folder: RewardFunctions_v17\
 
 &nbsp;
 
+### **Observation Space**
+Added two new observation fields: "nearest_adjacent_position" and "adjacent_to_other_stop" which help find the distance to the nearest adjacent spot and tell if the agent is currently next to another stop respectively. These two will hopefully help achieve better adjacent placement.
+
 ### **Reward Functions**
 |Name|Reward function change|
 |----|---------------|
+|Stop distribution|Weight increased to 10. Function will now reward increasingly while under the wished for distribution and sharply decreasingly once the wished for distribution has been passed.|
+|Stop adjacency|Weight increased to 12. Function will now punish half if stop is not placed next to any other stop and fully if placed next to an incorrect stop.|
+|Stop relative positions|Weight increased to 10.|
+|Minimize turns|Lowered weight from 3.5 to 2, as there is still very little turning happening.|
 
 ### **Generated Maps**
 ![final generated map](./generated_maps/RewardFunctions_v17_final_model.png)
@@ -811,3 +818,6 @@ Logs folder: RewardFunctions_v17\
 
 
 ### **Issues attempted to fix**
+v16 turned out worse than v15 in resemlance of the actual geographical maps, which is overall fine. It did, however, also lose most other variation and returned to straight lines.
+
+The main issues boil down to not turning enough and still not appropriately placing stops, both based on spacing and adjacency.
