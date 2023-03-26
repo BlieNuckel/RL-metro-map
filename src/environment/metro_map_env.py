@@ -44,10 +44,11 @@ class MetroMapEnv(gym.Env):
             "stop_angle_diff": gym.spaces.Box(0, 360, (1,), dtype=np.float32),
             "next_stop_direction": gym.spaces.Discrete(8),
             "adjacent_to_same_stop": gym.spaces.Discrete(2),
+            "adjacent_to_other_stop": gym.spaces.Discrete(2),
+            "nearest_adjacent_position": gym.spaces.Box(0, np.inf, (1,), dtype=np.float32)
             # "should_place_stop": gym.spaces.Discrete(2),
         }
         self.observation_space = gym.spaces.Dict(spaces)
-        self.compare_radius = 50
         self.render_mode = render_mode
 
     @property
@@ -184,18 +185,22 @@ class MetroMapEnv(gym.Env):
         # observations["max_turns"] = np.array([self.max_turns], dtype=np.int16)
         observations["curr_direction"] = int(self.curr_direction)
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
-        observations["adjacent_to_same_stop"] = (
-            1
-            if self.stop_adjacency_map.is_first(self.curr_stop.id)
-            or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position)
-            else 0
-        )
         observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
         observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
         # observations["should_place_stop"] = 1 if self.steps_since_stop >= self.stop_spacing else 0
         mean_angle_diff = np.mean(self.__find_relative_stop_angle_diffs(), dtype=float) % 360
         observations["stop_angle_diff"] = np.array([mean_angle_diff], dtype=np.float32)
         observations["next_stop_direction"] = int(Direction.from_degree(mean_angle_diff))
+        observations["adjacent_to_same_stop"] = (
+            1
+            if self.stop_adjacency_map.is_first(self.curr_stop.id)
+            or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position)
+            else 0
+        )
+        observations["nearest_adjacent_position"] = np.array([self.__get_distance_to_nearest_adjacent()])
+        observations["adjacent_to_other_stop"] = (
+            1 if self.stop_adjacency_map.adjacent_to_other(self.curr_stop.id, self.curr_position) else 0
+        )
 
         return observations
 
@@ -292,15 +297,18 @@ class MetroMapEnv(gym.Env):
             reward += score_funcs.stop_placed()
 
             is_stop_first = self.stop_adjacency_map.is_first(stop_to_place.id)
+            is_stop_placed_adjacent_wrong = self.stop_adjacency_map.adjacent_to_other(
+                stop_to_place.id, self.curr_position
+            )
 
             if not is_stop_first:
                 is_stop_placed_adjacent = self.stop_adjacency_map.is_adjacent(stop_to_place.id, self.curr_position)
                 if is_stop_placed_adjacent:
                     self.__update_adjacency_map(stop_to_place)
 
-                reward += score_funcs.stop_adjacency(is_stop_placed_adjacent)
+                reward += score_funcs.stop_adjacency(is_stop_placed_adjacent_wrong, is_stop_placed_adjacent)
             else:
-                reward += score_funcs.stop_adjacency(is_stop_first)
+                reward += score_funcs.stop_adjacency(is_stop_placed_adjacent_wrong, is_stop_first)
                 self.__update_adjacency_map(stop_to_place)
 
             self.steps_since_stop = 0
@@ -379,7 +387,7 @@ class MetroMapEnv(gym.Env):
             for k, v in self.real_stop_angles[self.curr_stop.id].items()
             if k in [stop.id for stop in self.placed_stops]
         }.values()
-        new_relative_angles = [stop.angle_to_stop(self.curr_position) for stop in self.placed_stops]
+        new_relative_angles = [stop.position.angle_to(self.curr_position) for stop in self.placed_stops]
 
         # next_stop_real_angles_dict = self.real_stop_angles[self.curr_stop.id]
         # next_stop_real_angles_arr = list(
@@ -415,6 +423,14 @@ class MetroMapEnv(gym.Env):
                 found_stop_ids.append(stop.id)
 
         return found_stop_ids, found_stops
+
+    def __get_distance_to_nearest_adjacent(self) -> float:
+        nearest_adjacent = self.stop_adjacency_map.get_nearest_adjacent(self.curr_stop.id, self.curr_position)
+
+        if nearest_adjacent is None:
+            return 0
+
+        return self.curr_position.distance_to(nearest_adjacent)
 
     def __handle_end_of_curr_line(self) -> None:
         if not self.__end_of_curr_line():

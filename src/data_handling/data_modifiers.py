@@ -68,7 +68,7 @@ def extract_stop_angle_mappings(data: dict[str, list[Stop]]) -> dict[str, dict[s
             if stop == related_stop:
                 continue
 
-            relative_stop_angles[related_stop.id] = stop.angle_to_stop(related_stop)
+            relative_stop_angles[related_stop.id] = stop.position.angle_to(related_stop.position)
 
         stop_angle_mapping[stop.id] = relative_stop_angles
 

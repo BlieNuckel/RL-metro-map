@@ -3,10 +3,10 @@ import math
 C_LINE_OVERLAP = 100
 C_STOP_OVERLAP = 100
 C_OUT_OF_BOUNDS = 100
-C_STOP_ADJACENCY = 10
-C_STOP_RELATIVE_POS = 6.5
-C_STOP_DISTRIBUTION = 8.5
-C_MINIMIZE_TURNS = 3.5
+C_STOP_ADJACENCY = 12
+C_STOP_RELATIVE_POS = 10
+C_STOP_DISTRIBUTION = 10
+C_MINIMIZE_TURNS = 2
 C_STOP_PLACED = 5
 C_PROMOTE_SPREADING = 1.5
 C_FINISHED = 50
@@ -32,17 +32,20 @@ def out_of_bounds() -> float:
     return C_OUT_OF_BOUNDS * -1
 
 
-def stop_adjacency(stop_placed_adjacent: bool) -> float:
-    return C_STOP_ADJACENCY * (1 if stop_placed_adjacent else -1)  # 2/5 -> 1
+def stop_adjacency(stop_placed_adjacent_wrong: bool, stop_placed_adjacent: bool) -> float:
+    if stop_placed_adjacent_wrong:
+        return C_STOP_ADJACENCY * -1
+
+    return C_STOP_ADJACENCY * (1 if stop_placed_adjacent else -0.5)
 
 
 def stop_distribution(steps_since_stop: int, stop_distribution: int) -> float:
     if steps_since_stop <= stop_distribution:
-        return C_STOP_DISTRIBUTION * 1
+        return C_STOP_DISTRIBUTION * _clamp(-1, 1, 0.25 * steps_since_stop)
     else:
-        return C_STOP_DISTRIBUTION * _clamp_min(-1, -steps_since_stop + stop_distribution + 1)
+        return C_STOP_DISTRIBUTION * _clamp(-1, 1, -steps_since_stop + stop_distribution + 1)
 
-    # return C_STOP_DISTRIBUTION * (2 / 5 if distributed_correctly else -1)  # 2/5 -> 1
+    # return C_STOP_DISTRIBUTION * (2 / 5 if distributed_correctly else -1)
 
 
 def stop_placed() -> float:

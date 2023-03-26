@@ -1,5 +1,4 @@
 from src.models.coordinates2d import Coordinates2d
-from src.utils.math import angle_between_points
 
 
 class Stop:
@@ -8,12 +7,6 @@ class Stop:
         self.id = id
         self.position = position
         self.__original_position = position
-
-    def angle_to_stop(self, stop: "Stop | Coordinates2d") -> float:
-        if isinstance(stop, Stop):
-            return angle_between_points(self.position, stop.position)
-        else:
-            return angle_between_points(self.position, stop)
 
     def get_original_position(self) -> Coordinates2d:
         return self.__original_position

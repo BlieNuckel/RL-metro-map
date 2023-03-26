@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Union
 import math
+from src.utils.math import angle_between_points
 
 
 @dataclass(frozen=True)
@@ -13,6 +14,9 @@ class Coordinates2d:
 
     def distance_to(self, position: "Coordinates2d") -> float:
         return math.sqrt((self.x - position.x) ** 2 + (self.y - position.y) ** 2)
+
+    def angle_to(self, position: "Coordinates2d") -> float:
+        return angle_between_points(self, position)
 
     def __add__(self, value: Union[tuple[float, float], "Coordinates2d"]) -> "Coordinates2d":
         assert isinstance(value, tuple) or isinstance(value, Coordinates2d), (
