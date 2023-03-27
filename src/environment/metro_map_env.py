@@ -197,7 +197,9 @@ class MetroMapEnv(gym.Env):
             or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position)
             else 0
         )
-        observations["nearest_adjacent_position"] = np.array([self.__get_distance_to_nearest_adjacent()])
+        observations["nearest_adjacent_position"] = np.array(
+            [self.__get_distance_to_nearest_adjacent()], dtype=np.float32
+        )
         observations["adjacent_to_other_stop"] = (
             1 if self.stop_adjacency_map.adjacent_to_other(self.curr_stop.id, self.curr_position) else 0
         )
@@ -425,6 +427,9 @@ class MetroMapEnv(gym.Env):
         return found_stop_ids, found_stops
 
     def __get_distance_to_nearest_adjacent(self) -> float:
+        if self.stop_adjacency_map.is_first(self.curr_stop.id):
+            return 0
+
         nearest_adjacent = self.stop_adjacency_map.get_nearest_adjacent(self.curr_stop.id, self.curr_position)
 
         if nearest_adjacent is None:

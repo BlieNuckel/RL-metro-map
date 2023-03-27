@@ -1,8 +1,12 @@
-from src.models import Coordinates2d
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.models import Coordinates2d
 import math
 
 
-def angle_between_points(point1: Coordinates2d, point2: Coordinates2d) -> float:
+def angle_between_points(point1: "Coordinates2d", point2: "Coordinates2d") -> float:
 
     angle = math.degrees(
         math.atan2(-point1.y + point1.y, point1.x - point1.x) - math.atan2(-point2.y + point1.y, point2.x - point1.x)
