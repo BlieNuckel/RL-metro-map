@@ -316,9 +316,9 @@ class MetroMapEnv(gym.Env):
         stop_to_place = self.lines[self.curr_line][self.curr_stop_index]
         self.placed_stops[self.curr_position] = stop_to_place
 
-        stop_to_place.position = self.curr_position
+        reward += score_funcs.stop_placed(stop_to_place.position.distance_to(self.curr_position))
 
-        reward += score_funcs.stop_placed()
+        stop_to_place.position = self.curr_position
 
         is_stop_first = self.stop_adjacency_map.is_first(stop_to_place.id)
         is_stop_placed_adjacent_wrong = self.stop_adjacency_map.adjacent_to_other(stop_to_place.id, self.curr_position)

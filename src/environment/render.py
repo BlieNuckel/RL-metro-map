@@ -8,9 +8,9 @@ def render_map(
 ) -> np.ndarray:
     try:
         min_x = min([pos.x for pos in lines.keys()] + [pos.x for pos in stops.keys()])  # -1499
-        min_y = min([pos.y for pos in lines.keys()] + [pos.y for pos in stops.keys()])  # -1324
+        min_y = min([-pos.y for pos in lines.keys()] + [-pos.y for pos in stops.keys()])  # -1324
         max_x = max([pos.x for pos in lines.keys()] + [pos.x for pos in stops.keys()])  # 1422
-        max_y = max([pos.y for pos in lines.keys()] + [pos.y for pos in stops.keys()])  # 1530
+        max_y = max([-pos.y for pos in lines.keys()] + [-pos.y for pos in stops.keys()])  # 1530
     except ValueError:
         min_x, max_x, min_y, max_y = 0, 0, 0, 0
 
@@ -26,7 +26,7 @@ def render_map(
 
     for pos, line_id in lines.items():
         pos_x = (pos.x + abs(min_x) + margin // 2) * 2
-        pos_y = (pos.y + abs(min_y) + margin // 2) * 2
+        pos_y = (-pos.y + abs(min_y) + margin // 2) * 2
         cv2.rectangle(
             img,
             (pos_x, pos_y),
@@ -37,7 +37,7 @@ def render_map(
 
     for pos, _ in stops.items():
         pos_x = (pos.x + abs(min_x) + margin // 2) * 2
-        pos_y = (pos.y + abs(min_y) + margin // 2) * 2
+        pos_y = (-pos.y + abs(min_y) + margin // 2) * 2
         cv2.rectangle(
             img,
             (pos_x, pos_y),

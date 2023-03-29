@@ -7,8 +7,6 @@ C_STOP_ADJACENCY = 12
 C_STOP_RELATIVE_POS = 10
 C_STOP_DISTRIBUTION = 10
 C_MINIMIZE_TURNS = 2
-C_STOP_PLACED = 5
-C_PROMOTE_SPREADING = 1.5
 C_FINISHED = 50
 C_TIME_ALIVE = 1
 
@@ -48,8 +46,11 @@ def stop_distribution(steps_since_stop: int, stop_distribution: int) -> float:
     # return C_STOP_DISTRIBUTION * (2 / 5 if distributed_correctly else -1)
 
 
-def stop_placed() -> float:
-    return C_STOP_PLACED * 1
+def stop_placed(distance_to_real_stop: float) -> float:
+    if abs(distance_to_real_stop) <= 25:
+        return C_STOP_RELATIVE_POS * 1
+
+    return C_STOP_RELATIVE_POS * 0
 
 
 def stop_relative_position(angle_difference: float) -> float:
@@ -60,7 +61,7 @@ def stop_relative_position(angle_difference: float) -> float:
 
 
 def distance_to_real_stop(distance: float, prev_distance: float, init_distance: float) -> float:
-    if abs(distance) < 25:
+    if abs(distance) <= 25:
         return C_STOP_RELATIVE_POS * 1
     else:
         # return C_STOP_RELATIVE_POS * ((math.e / 2) ** (-abs(distance) + 25))
