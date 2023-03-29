@@ -11,6 +11,7 @@ from src.constants.data import (
 from src.models import Stop, Coordinates2d
 from src.utils.list import flat_map
 from typing import NamedTuple
+import numpy as np
 
 
 # TODO Collapsing still fails on example BP4456, 33008, and 33012.
@@ -75,33 +76,37 @@ def extract_stop_angle_mappings(data: dict[str, list[Stop]]) -> dict[str, dict[s
     return stop_angle_mapping
 
 
-def normalize_stop_positions(stops: list[Stop], x_limits: tuple[int, int], y_limits: tuple[int, int]) -> list[Stop]:
-    # center_point = center_geolocation([stop.position for stop in stops])
+def normalize_stop_positions(stops: dict[str, list[Stop]], starting_stops: list[str]) -> dict[str, list[Stop]]:
+    count_dict = dict({(key, len(value)) for key, value in stops.items()})
+    all_stops = flat_map(stops.values())
+    starting_stops_locations = np.array(
+        list(set(stop.position.to_tuple() for stop in all_stops if stop.id in starting_stops))
+    )
 
-    max_x = max([abs(stop.position.x) for stop in stops])
-    max_y = max([abs(stop.position.y) for stop in stops])
-    min_x = min([abs(stop.position.x) for stop in stops])
-    min_y = min([abs(stop.position.y) for stop in stops])
+    scale = 0.1
 
-    x_min_limit = x_limits[0]
-    # x_max_limit = x_limits[1]
-    y_min_limit = y_limits[0]
-    # y_max_limit = y_limits[1]
+    all_pos = np.array([stop.position.to_tuple() for stop in all_stops])
+    origin_all = (all_pos.min(axis=0) + all_pos.max(axis=0)) * 0.5
 
-    for stop in stops:
-        norm_x = stop.position.x
-        norm_y = stop.position.y
+    starting_stops_locations = origin_all * (1 - scale) + starting_stops_locations * scale
 
-        norm_x -= (max_x + min_x) / 2
-        norm_y -= (max_y + min_y) / 2
+    origin_starting_stops = (starting_stops_locations.min(axis=0) + starting_stops_locations.max(axis=0)) * 0.5
+    origin_starting_stops.astype("float")
 
-        x_scale = max_x - min_x + x_min_limit
-        y_scale = max_y - min_y + y_min_limit
+    q = np.subtract(origin_all * (1 - scale) + all_pos * scale, origin_starting_stops, dtype=float)
 
-        # norm_x = (x_max_limit - x_min_limit) * ((stop.position.x - min_x) / (max_x - min_x)) + x_min_limit
-        # norm_y = (y_max_limit - y_min_limit) * ((stop.position.y - min_y) / (max_y - min_y)) + y_min_limit
+    for key, stop_count in count_dict.items():
+        stop_list = q[0:stop_count]
+        q = q[stop_count:]
 
-        stop.position = Coordinates2d(norm_x / x_scale, norm_y / y_scale)
+        for i, position in enumerate(stop_list):
+            stops[key][i].position = Coordinates2d(*position)
+
+    # ax = plt.subplot(111)
+    # ax.scatter(*p.T, c="b")
+    # ax.scatter(*origin_all, marker="x", c="g")
+    # ax.scatter(*q.T, c="r")
+    # plt.show()
 
     return stops
 

@@ -1,6 +1,7 @@
 from src.models.env_data import EnvDataDef, EnvData
 from src.data_handling.parser import StopsPerRouteParser, StopsParser
 from src.data_handling.data_modifiers import (
+    normalize_stop_positions,
     remove_duplicate_stops,
     dataframe_as_routes_and_stops,
     extract_stop_angle_mappings,
@@ -8,9 +9,7 @@ from src.data_handling.data_modifiers import (
 from src.constants.data import STOP_NUMBER_COLUMN
 from pandas import DataFrame  # type: ignore
 import numpy as np
-
-# import matplotlib.pyplot as plt  # type: ignore
-# from src.utils.list import flat_map
+from src.models.stop import Stop
 
 
 class RandomOptions:
@@ -38,35 +37,30 @@ class RandomOptions:
             max_turns, lookback_range = env_data_def.turn_limits
             stop_distribution = env_data_def.stop_spacing
 
-        routes_df = self._load_and_parse_data(env_data_def.lines)
+        routes_df = self._load_and_parse_data(env_data_def.starting_stops)
 
         routes_dict = dataframe_as_routes_and_stops(routes_df)
 
         stop_angle_mapping = extract_stop_angle_mappings(routes_dict)
 
-        # normalized_routes: dict[str, list[Stop]] = dict(
-        #     [
-        #         (key, normalize_stop_positions(value, (0, env_data_def.width), (0, env_data_def.height)))
-        #         for key, value in routes_dict.items()
-        #     ]
-        # )
+        normalized_routes_dict: dict[str, list[Stop]] = normalize_stop_positions(
+            routes_dict, env_data_def.starting_stops
+        )
 
-        # all_stops = flat_map(routes_dict_deque.values())
-        # plt.subplot(211)
-        # plt.scatter([stop.position.x for stop in all_stops], [stop.position.y for stop in all_stops])
-
-        # plt.subplot(212)
+        # all_stops = flat_map(normalized_routes_dict.values())
+        # plt.subplot(111)
+        # plt.scatter([stop.position.x for stop in all_stops], [stop.position.y for stop in all_stops], c="r")
         # plt.scatter(
         #     [stop.get_original_position().x for stop in all_stops],
         #     [stop.get_original_position().y for stop in all_stops],
+        #     c="g",
         # )
 
         # plt.show()
 
         return EnvData(
-            env_data_def.width,
-            env_data_def.height,
-            routes_dict,
+            normalized_routes_dict,
+            env_data_def.starting_stops,
             env_data_def.starting_positions,
             stop_angle_mapping,
             env_data_def.line_color_map,

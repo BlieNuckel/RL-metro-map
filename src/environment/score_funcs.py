@@ -59,6 +59,14 @@ def stop_relative_position(angle_difference: float) -> float:
         return C_STOP_RELATIVE_POS * (((math.e / 2) ** (-abs(angle_difference) + 24.75)) - 1)
 
 
+def distance_to_real_stop(distance: float, prev_distance: float, init_distance: float) -> float:
+    if abs(distance) < 25:
+        return C_STOP_RELATIVE_POS * 1
+    else:
+        # return C_STOP_RELATIVE_POS * ((math.e / 2) ** (-abs(distance) + 25))
+        return C_STOP_RELATIVE_POS * (prev_distance - distance) / init_distance
+
+
 def minimize_turns(recent_turns_degrees: int) -> float:
     if recent_turns_degrees <= 45:
         return C_MINIMIZE_TURNS * 0

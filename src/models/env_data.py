@@ -5,9 +5,8 @@ from typing import Any
 
 @dataclass(frozen=True)
 class EnvData:
-    width: int
-    height: int
     lines: dict[str, list[Stop]]
+    starting_stops: list[str]
     starting_positions: dict[str, tuple[Coordinates2d, Direction]]
     stop_angle_mapping: dict[str, dict[str, float]]
     line_color_map: dict[str, tuple[int, int, int]]
@@ -17,9 +16,7 @@ class EnvData:
 
 @dataclass(frozen=True)
 class EnvDataDef:
-    width: int
-    height: int
-    lines: list[str]
+    starting_stops: list[str]
     starting_positions: dict[str, tuple[Coordinates2d, Direction]]
     line_color_map: dict[str, tuple[int, int, int]]
     turn_limits: tuple[int, int]
@@ -27,9 +24,7 @@ class EnvDataDef:
 
     @staticmethod
     def from_json(json: dict[Any, Any]) -> "EnvDataDef":
-        width = json["width"]
-        height = json["height"]
-        lines = json["lines"]
+        startin_stops = json["starting_stops"]
 
         starting_positions: dict[str, tuple[Coordinates2d, Direction]] = {}
         for key, value in json["starting_positions"].items():
@@ -51,4 +46,4 @@ class EnvDataDef:
         turn_limits = tuple(json["turn_limits"])
         stop_spacing = json["stop_spacing"]
 
-        return EnvDataDef(width, height, lines, starting_positions, line_color_map, turn_limits, stop_spacing)  # type: ignore # noqa: E501
+        return EnvDataDef(startin_stops, starting_positions, line_color_map, turn_limits, stop_spacing)  # type: ignore # noqa: E501
