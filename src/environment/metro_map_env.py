@@ -201,19 +201,24 @@ class MetroMapEnv(gym.Env):
         # observations["stop_angle_diff"] = np.array([mean_angle_diff], dtype=np.float32)
         # observations["next_stop_direction"] = int(Direction.from_degree(mean_angle_diff))
         observations["next_stop_distance"] = np.array(
-            [self.curr_position.distance_to(self.curr_stop.position)], dtype=np.float32
+            [0 if self.curr_stop_index == 0 else self.curr_position.distance_to(self.curr_stop.position)],
+            dtype=np.float32,
         )
         observations["adjacent_to_same_stop"] = (
             1
             if self.stop_adjacency_map.is_first(self.curr_stop.id)
-            or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position)
+            or self.stop_adjacency_map.is_adjacent(self.curr_stop.id, self.curr_position + self.curr_direction.value)
             else 0
         )
         observations["nearest_adjacent_position"] = np.array(
             [self.__get_distance_to_nearest_adjacent()], dtype=np.float32
         )
         observations["adjacent_to_other_stop"] = (
-            1 if self.stop_adjacency_map.adjacent_to_other(self.curr_stop.id, self.curr_position) else 0
+            1
+            if self.stop_adjacency_map.adjacent_to_other(
+                self.curr_stop.id, self.curr_position + self.curr_direction.value
+            )
+            else 0
         )
 
         return observations
@@ -277,7 +282,7 @@ class MetroMapEnv(gym.Env):
 
         terminated, truncated, reward, info = self.__move_forward()
 
-        reward += score_funcs.minimize_turns(sum(self.recent_turns))
+        # reward += score_funcs.minimize_turns(sum(self.recent_turns))
 
         return (terminated, truncated, reward, info)
 
