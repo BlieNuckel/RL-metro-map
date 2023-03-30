@@ -26,7 +26,7 @@ def main() -> None:
     monitor = Monitor(env, reset_keywords=tuple(["options"]))  # type: ignore
 
     for model_name in models_list:
-        if model_name == "final_model":
+        if model_name == "best_model":
             continue
         model = QRDQN.load(f"{models_dir}/{model_name}.zip", monitor, device="cuda")
 

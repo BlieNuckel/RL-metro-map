@@ -316,7 +316,10 @@ class MetroMapEnv(gym.Env):
         stop_to_place = self.lines[self.curr_line][self.curr_stop_index]
         self.placed_stops[self.curr_position] = stop_to_place
 
-        reward += score_funcs.stop_placed(stop_to_place.position.distance_to(self.curr_position))
+        if self.curr_stop_index == 0:
+            reward += score_funcs.stop_placed(0)
+        else:
+            reward += score_funcs.stop_placed(stop_to_place.position.distance_to(self.curr_position))
 
         stop_to_place.position = self.curr_position
 
@@ -330,7 +333,8 @@ class MetroMapEnv(gym.Env):
 
             reward += score_funcs.stop_adjacency(is_stop_placed_adjacent_wrong, is_stop_placed_adjacent)
         else:
-            reward += score_funcs.stop_adjacency(is_stop_placed_adjacent_wrong, is_stop_first)
+            if self.curr_stop_index == 0:
+                reward += score_funcs.stop_adjacency(is_stop_placed_adjacent_wrong, is_stop_first)
             self.__update_adjacency_map(stop_to_place)
 
         self.steps_since_stop = 0
@@ -472,4 +476,4 @@ class MetroMapEnv(gym.Env):
         return self.stops_remaining_curr == 0
 
     def __end_of_all_lines(self) -> bool:
-        return self.lines_remaining_all == 0
+        return self.lines_remaining_all == 0 and self.stops_remaining_all == 0
