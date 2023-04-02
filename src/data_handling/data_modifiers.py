@@ -11,7 +11,6 @@ from src.constants.data import (
 from src.models import Stop, Coordinates2d
 from src.utils.list import flat_map
 from typing import NamedTuple
-import numpy as np
 
 
 # TODO Collapsing still fails on example BP4456, 33008, and 33012.
@@ -77,30 +76,50 @@ def extract_stop_angle_mappings(data: dict[str, list[Stop]]) -> dict[str, dict[s
 
 
 def normalize_stop_positions(stops: dict[str, list[Stop]], starting_stops: list[str]) -> dict[str, list[Stop]]:
-    count_dict = dict({(key, len(value)) for key, value in stops.items()})
-    all_stops = flat_map(stops.values())
-    starting_stops_locations = np.array(
-        list(set(stop.position.to_tuple() for stop in all_stops if stop.id in starting_stops))
-    )
+    all_stops = set(flat_map(stops.values()))
 
     scale = 0.1
 
-    all_pos = np.array([stop.position.to_tuple() for stop in all_stops])
-    origin_all = (all_pos.min(axis=0) + all_pos.max(axis=0)) * 0.5
+    x_values = [stop.position.x for stop in all_stops]
+    y_values = [stop.position.y for stop in all_stops]
 
-    starting_stops_locations = origin_all * (1 - scale) + starting_stops_locations * scale
+    origin_all = Coordinates2d((min(x_values) + max(x_values)) * 0.5, (min(y_values) + max(y_values)) * 0.5)
 
-    origin_starting_stops = (starting_stops_locations.min(axis=0) + starting_stops_locations.max(axis=0)) * 0.5
-    origin_starting_stops.astype("float")
+    starting_stops_locations = [
+        Coordinates2d(
+            origin_all.x * (1 - scale) + stop.position.x * scale, origin_all.y * (1 - scale) + stop.position.y * scale
+        )
+        for stop in all_stops
+        if stop.id in starting_stops
+    ]
+    starting_stops_x_values = [pos.x for pos in starting_stops_locations]
+    starting_stops_y_values = [pos.y for pos in starting_stops_locations]
+    origin_starting_stops = Coordinates2d(
+        (min(starting_stops_x_values) + max(starting_stops_x_values)) * 0.5,
+        (min(starting_stops_y_values) + max(starting_stops_y_values)) * 0.5,
+    )
 
-    q = np.subtract(origin_all * (1 - scale) + all_pos * scale, origin_starting_stops, dtype=float)
+    for stop in all_stops:
+        stop.position = Coordinates2d(
+            (origin_all.x * (1 - scale) + stop.position.x * scale) - origin_starting_stops.x,
+            (origin_all.y * (1 - scale) + stop.position.y * scale) - origin_starting_stops.y,
+        )
 
-    for key, stop_count in count_dict.items():
-        stop_list = q[0:stop_count]
-        q = q[stop_count:]
+    # all_pos = np.array([stop.position.to_tuple() for stop in all_stops])
+    # origin_all = (all_pos.min(axis=0) + all_pos.max(axis=0)) * 0.5
 
-        for i, position in enumerate(stop_list):
-            stops[key][i].position = Coordinates2d(*position)
+    # starting_stops_locations = origin_all * (1 - scale) + starting_stops_locations * scale
+
+    # origin_starting_stops = (starting_stops_locations.min(axis=0) + starting_stops_locations.max(axis=0)) * 0.5
+    # origin_starting_stops.astype("float")
+
+    # q = np.subtract(origin_all * (1 - scale) + all_pos * scale, origin_starting_stops, dtype=float)
+
+    for stop_list in stops.values():
+        for stop in stop_list:
+            for norm_stop in all_stops:
+                if stop == norm_stop:
+                    stop.position = norm_stop.position
 
     # ax = plt.subplot(111)
     # ax.scatter(*p.T, c="b")

@@ -4,7 +4,8 @@ C_LINE_OVERLAP = 100
 C_STOP_OVERLAP = 100
 C_OUT_OF_BOUNDS = 100
 C_STOP_ADJACENCY = 12
-C_STOP_RELATIVE_POS = 30
+C_STOP_RELATIVE_POS = 11
+C_DIST_TO_REAL_STOP = 4
 C_STOP_DISTRIBUTION = 10
 C_MINIMIZE_TURNS = 2
 C_FINISHED = 50
@@ -50,7 +51,7 @@ def stop_placed(distance_to_real_stop: float) -> float:
     if abs(distance_to_real_stop) <= 25:
         return C_STOP_RELATIVE_POS * 1
 
-    return C_STOP_RELATIVE_POS * 0
+    return C_STOP_RELATIVE_POS * -1
 
 
 def stop_relative_position(angle_difference: float) -> float:
@@ -61,11 +62,17 @@ def stop_relative_position(angle_difference: float) -> float:
 
 
 def distance_to_real_stop(distance: float, prev_distance: float, init_distance: float) -> float:
-    if abs(distance) <= 25:
-        return C_STOP_RELATIVE_POS * 1
-    else:
-        # return C_STOP_RELATIVE_POS * ((math.e / 2) ** (-abs(distance) + 25))
-        return C_STOP_RELATIVE_POS * (prev_distance - distance) / init_distance
+    if distance < prev_distance:
+        return C_DIST_TO_REAL_STOP * 1
+
+    return C_DIST_TO_REAL_STOP * -1
+
+    # if abs(distance) == 25:
+    #     return C_DIST_TO_REAL_STOP * 1
+    # else:
+    # return C_STOP_RELATIVE_POS * ((math.e / 2) ** (-abs(distance) + 25))
+    # return C_DIST_TO_REAL_STOP * ((prev_distance - distance) / init_distance)
+    # return C_DIST_TO_REAL_STOP * (1 / (distance - 25))
 
 
 def minimize_turns(recent_turns_degrees: int) -> float:

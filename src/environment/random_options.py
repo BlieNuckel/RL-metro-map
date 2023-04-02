@@ -49,7 +49,11 @@ class RandomOptions:
 
         # all_stops = flat_map(normalized_routes_dict.values())
         # plt.subplot(111)
-        # plt.scatter([stop.position.x for stop in all_stops], [stop.position.y for stop in all_stops], c="r")
+        # plt.scatter(
+        #     [stop.position.x for stop in all_stops],
+        #     [stop.position.y for stop in all_stops],
+        #     c="r",
+        # )
         # plt.scatter(
         #     [stop.get_original_position().x for stop in all_stops],
         #     [stop.get_original_position().y for stop in all_stops],

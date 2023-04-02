@@ -821,3 +821,178 @@ Added two new observation fields: "nearest_adjacent_position" and "adjacent_to_o
 v16 turned out worse than v15 in resemlance of the actual geographical maps, which is overall fine. It did, however, also lose most other variation and returned to straight lines.
 
 The main issues boil down to not turning enough and still not appropriately placing stops, both based on spacing and adjacency.
+
+
+
+## **Version 19** | []()
+
+Logs folder: RewardFunctions_v19\
+
+&nbsp;
+
+### **Environment State**
+The state has been updated to support infinite drawings (no boundaries) up until a specified maximum steps. This removes the entire grid functionality of the application.
+
+Outside of this, all the data points that must be drawn are now scaled down and centralized around 0. These positions are then used as guides for approximately where to put the stops by the agent. This is intended to achieve similar results as with the angles, but hopefully more accurate.
+
+### **Observation Space**
+Removed the following observations as they did not mesh well with the new infinite grid or failed to work with the stop location-based placement: stop_spacing, steps_since_stop, stop_angle_diff, next_stop_direction, and out_of_bounds_in_adjacent_fields.
+
+Added the following observations: next_stop_distance.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|**New**||
+|Distance to real stop|Reward that functions similar to "stop relative position" by scoring the agent positively at each step if it gets closer to the real stop position and punishing if it moves further away. Once within a 25 unit radius, the reward is a full 1 to "minimize turns" conflicts.|
+|**Removed**||
+|Time alive|This did not fit the new infinite grid, as stop spacing has been temporarily disregarded in an attempt to achieve any decent map output.|
+|Stop relative position|Angle based version removed and replaced with "distance to real stop"|
+|Stop distribution|Temporarily removed to attempt to achieve better maps with real positions.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v18_final_model.png)\
+*Final generated map at 2 million timesteps. It is very hard to see, but it is simply a very long straight line.*
+
+![best generated map](./generated_maps/RewardFunctions_v18_best_model.png)\
+*Best generated map made throughout training of v18*
+
+
+### **Issues attempted to fix**
+v17 started to show some promising behaviour of actually turning, but still seemed to get directions and such wrong. Similarly the stop adjacency is still problematic and not working as intended.
+
+
+
+## **Version 19** | [b4e1fbf](https://github.com/BlieNuckel/RL-metro-map/commit/b4e1fbf8029f9f016f410e609f2f19833f214e8d)
+
+Logs folder: RewardFunctions_v19\
+
+&nbsp;
+
+### **Observation Space**
+Stop adjacency was triggering one too late and therefore giving incorrect information regarding the current positions adjacency. This is fixed.
+
+Real stop distance will now always be 0 for the first stop in a line, to promote placing it right at the beginning.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|**Removed**||
+|Minimize Turns|Temporarily disabled to hopefully achieve better results (more geographically accurate) with less fully straight lines.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v19_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v19_best_model.png)\
+*Best generated map made throughout training of v19*
+
+
+### **Issues attempted to fix**
+v18 ended up killing itself in the best version and draws very long, straight lines.
+
+
+
+## **Version 20** | [c74d7d2](https://github.com/BlieNuckel/RL-metro-map/commit/c74d7d22bfb4606206b42fd87790ea3a20aec2e9)
+
+Logs folder: RewardFunctions_v20\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Stop Placed|No longer unconditional reward for placing stop, but will reward 0 if not within a 25 unit radius of the real stop's position.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v20_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v20_best_model.png)\
+*Best generated map made throughout training of v20*
+
+
+### **Issues attempted to fix**
+The straight lines were not gone after removing "minimize turns", this means something else is behind the straight lines forming. It is likely a result of the base reward for placing a stop.
+
+
+
+## **Version 21** | [66d9272](https://github.com/BlieNuckel/RL-metro-map/commit/66d92729cbc1ae10643bb7f550a267599d6e9752)
+
+Logs folder: RewardFunctions_v21\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Stop adjacent|Stop scoring stop adjacent on the first placement of the stop, as it was giving a positive reward.|
+|Distance to real stop|Increased weight from 10 to 30, to hopefully promote finding correct spot for stop.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v21_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v21_best_model.png)\
+*Best generated map made throughout training of v21*
+
+
+### **Issues attempted to fix**
+v20 still struggles with straight lines and not discovering where the right placement for the stops are.
+
+
+
+## **Version 22** | []()
+
+Logs folder: RewardFunctions_v22\
+
+&nbsp;
+
+### **Environment State**
+The normalization of stop positions was invalid and created random variation between each reset. This lead to never training on the same layout, which obviously caused some issues with drawing valid maps.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Distance to real stop|Previous setup promoted looping around the stops, as any movement inside the 25 unit radius gave a high reward. Reward is now 0 when within 25 units.|
+
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v22_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v22_best_model.png)\
+*Best generated map made throughout training of v22*
+
+
+### **Issues attempted to fix**
+Both v20 and v21 includes loops and v21 distinctly avoids placing stops.
+
+
+
+## **Version 23** | []()
+
+Logs folder: RewardFunctions_v23\
+
+&nbsp;
+
+### **Environment State**
+The normalization of stop positions was invalid and created random variation between each reset. This lead to never training on the same layout, which obviously caused some issues with drawing valid maps.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Distance to real stop|This was accidentally punishing for every stop placed, because of the "move forward" action that happens after every stop placement. This resulted in never placing stops, as it was too punishing. Now avoids this.|
+|Stop placed|Now punishes rather than giving 0, when placing a stop too far from its real position.|
+
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v23_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v23_best_model.png)\
+*Best generated map made throughout training of v23*
+
+
+### **Issues attempted to fix**
+v22 continued the pattern of creating loops, but this time discovered that moving too far was bad. Still avoids placing stops.

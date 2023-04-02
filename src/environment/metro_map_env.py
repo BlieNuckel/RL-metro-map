@@ -48,8 +48,8 @@ class MetroMapEnv(gym.Env):
             # "next_stop_direction": gym.spaces.Discrete(8),
             "adjacent_to_same_stop": gym.spaces.Discrete(2),
             "adjacent_to_other_stop": gym.spaces.Discrete(2),
-            "nearest_adjacent_position": gym.spaces.Box(0, np.inf, (1,), dtype=np.float32)
-            # "should_place_stop": gym.spaces.Discrete(2),
+            "nearest_adjacent_position": gym.spaces.Box(0, np.inf, (1,), dtype=np.float32),
+            "should_place_stop": gym.spaces.Discrete(2),
         }
         self.observation_space = gym.spaces.Dict(spaces)
         self.render_mode = render_mode
@@ -196,7 +196,7 @@ class MetroMapEnv(gym.Env):
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
         # observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
         # observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
-        # observations["should_place_stop"] = 1 if self.steps_since_stop >= self.stop_spacing else 0
+        observations["should_place_stop"] = 1 if self.curr_position.distance_to(self.curr_stop.position) <= 25 else 0
         # mean_angle_diff = np.mean(self.__find_relative_stop_angle_diffs(), dtype=float) % 360
         # observations["stop_angle_diff"] = np.array([mean_angle_diff], dtype=np.float32)
         # observations["next_stop_direction"] = int(Direction.from_degree(mean_angle_diff))
@@ -223,7 +223,7 @@ class MetroMapEnv(gym.Env):
 
         return observations
 
-    def __move_forward(self) -> tuple[bool, bool, float, dict[str, Any]]:
+    def __move_forward(self, after_stop: bool = False) -> tuple[bool, bool, float, dict[str, Any]]:
         terminated: bool = False
         truncated: bool = False
         reward: float = 0
@@ -260,9 +260,10 @@ class MetroMapEnv(gym.Env):
         reward += score_funcs.line_overlap(self.consecutive_overlaps)
         # reward += score_funcs.stop_distribution(self.steps_since_stop, self.stop_spacing)
         dist_to_real_stop = self.curr_position.distance_to(self.curr_stop.position)
-        reward += score_funcs.distance_to_real_stop(
-            dist_to_real_stop, self.curr_stop_prev_distance, self.curr_stop_init_distance
-        )
+        if not after_stop:
+            reward += score_funcs.distance_to_real_stop(
+                dist_to_real_stop, self.curr_stop_prev_distance, self.curr_stop_init_distance
+            )
         self.curr_stop_prev_distance = dist_to_real_stop
 
         self.placed_lines[self.curr_position] = self.curr_line
@@ -347,7 +348,7 @@ class MetroMapEnv(gym.Env):
             self.curr_stop_index += 1
             self.curr_stop_init_distance = self.curr_position.distance_to(self.curr_stop.position)
             self.curr_stop_prev_distance = 0
-            step_terminated, step_truncated, step_reward, step_info = self.__move_forward()
+            step_terminated, step_truncated, step_reward, step_info = self.__move_forward(True)
             info.update(step_info)
         else:
             self.__handle_end_of_curr_line()
