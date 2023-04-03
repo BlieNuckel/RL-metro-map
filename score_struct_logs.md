@@ -970,7 +970,7 @@ Both v20 and v21 includes loops and v21 distinctly avoids placing stops.
 
 
 
-## **Version 23** | []()
+## **Version 23** | [fe9a9d1](https://github.com/BlieNuckel/RL-metro-map/commit/0e6b83d59da6516283064af19cf7a9e0cf199f27)
 
 Logs folder: RewardFunctions_v23\
 
@@ -999,7 +999,7 @@ v22 continued the pattern of creating loops, but this time discovered that movin
 
 
 
-## **Version 24** | []()
+## **Version 24** | [0e6b83d](https://github.com/BlieNuckel/RL-metro-map/commit/0e6b83d59da6516283064af19cf7a9e0cf199f27)
 
 Logs folder: RewardFunctions_v24\
 
