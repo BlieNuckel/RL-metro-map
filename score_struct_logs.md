@@ -996,3 +996,26 @@ The normalization of stop positions was invalid and created random variation bet
 
 ### **Issues attempted to fix**
 v22 continued the pattern of creating loops, but this time discovered that moving too far was bad. Still avoids placing stops.
+
+
+
+## **Version 24** | []()
+
+Logs folder: RewardFunctions_v24\
+
+&nbsp;
+
+### **Observation Space**
+Removed observations that were previously used for scoring functions, that have been temporarily disabled, in an attempt to simplify structure of environment.
+
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v24_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v24_best_model.png)\
+*Best generated map made throughout training of v24*
+
+
+### **Issues attempted to fix**
+v21, 22, and 23 all avoid placing stops. 23 starts approaching a valid-ish shape of the path, but stil while not placing any stops.
