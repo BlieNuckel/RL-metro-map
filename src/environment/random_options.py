@@ -47,6 +47,10 @@ class RandomOptions:
             routes_dict, env_data_def.starting_stops
         )
 
+        final_routes_dict: dict[str, list[Stop]] = {
+            key: normalized_routes_dict[key] for key in env_data_def.starting_positions.keys()
+        }
+
         # all_stops = flat_map(normalized_routes_dict.values())
         # plt.subplot(111)
         # plt.scatter(
@@ -63,7 +67,7 @@ class RandomOptions:
         # plt.show()
 
         return EnvData(
-            normalized_routes_dict,
+            final_routes_dict,
             env_data_def.starting_stops,
             env_data_def.starting_positions,
             stop_angle_mapping,

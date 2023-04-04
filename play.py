@@ -27,7 +27,7 @@ def main() -> None:
     steps = 0
 
     while not terminated or truncated:
-        cv2.imshow("Metro Map Game", env.render())
+        cv2.imshow("Metro Map Game", cv2.cvtColor(env.render(), cv2.COLOR_BGR2RGB))  # type: ignore
         input_key = cv2.waitKey(0)
 
         action = handle_input(input_key)

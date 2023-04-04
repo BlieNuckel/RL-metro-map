@@ -1019,3 +1019,55 @@ Removed observations that were previously used for scoring functions, that have 
 
 ### **Issues attempted to fix**
 v21, 22, and 23 all avoid placing stops. 23 starts approaching a valid-ish shape of the path, but stil while not placing any stops.
+
+
+
+## **Version 25** | []()
+
+Logs folder: RewardFunctions_v25\
+
+&nbsp;
+
+### **Other Changes**
+Introduced 5 new maps to the training set to see if training on more maps would help generalization.
+
+### **Observation Space**
+Further simplified by removing all observations relating to stops being placed adjacent. This is again temporary in an attempt to improve geographical drawing capabilities and reaching the end goal step by step.
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Distance to real stop|Reward lowered from 1 to 0.8 when moving closer to stop, while keeping the punishment for moving away at -1. This should hopefully avoid |
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v25_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v25_best_model.png)\
+*Best generated map made throughout training of v25*
+
+
+### **Issues attempted to fix**
+v24's best model showed huge promise in terms of building teh map from the real positions of the stops. It did end up killing itself at the end of the first line unfortunately, but this could be learned away with time. The main issue arises from the final model, where the agent deteriorated into farming rewards by running back and forth between the stops, to constantly get a reward for "getting closer to the stop, than you previously were" (reward "distance to real stop").
+
+
+
+## **Version 26** | []()
+
+Logs folder: RewardFunctions_v25\
+
+&nbsp;
+
+### **Other Changes**
+Removed all maps except the previously used default, as training on multiple maps at once did not help.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v26_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v26_best_model.png)\
+*Best generated map made throughout training of v26*
+
+
+### **Issues attempted to fix**
+Identical to v25, just less training maps.

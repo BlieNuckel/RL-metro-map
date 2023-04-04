@@ -8,7 +8,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 
 def main() -> None:
-    version = 24
+    version = 26
     timesteps = 2000000
     models_dir = f"./generated_models/RewardFunctions_v{version}"
     log_dir = f"./logs/RewardFunctions_v{version}_logs"
@@ -26,13 +26,17 @@ def main() -> None:
     monitor = Monitor(env)  # type: ignore
     monitor.reset()
 
-    eval_callback = EvalCallback(eval_monitor, best_model_save_path=models_dir, eval_freq=50000, n_eval_episodes=5)
+    eval_callback = EvalCallback(
+        eval_monitor,
+        best_model_save_path=models_dir,
+        eval_freq=50000,
+        n_eval_episodes=5,
+    )
 
     model = QRDQN(
         "MultiInputPolicy",
         monitor,
         tensorboard_log=log_dir,
-        buffer_size=25000,
         device="cuda",
     )
 

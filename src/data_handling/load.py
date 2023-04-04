@@ -1,4 +1,4 @@
-import json
+import json5  # type: ignore
 from pandas import DataFrame  # type: ignore
 import shapefile  # type: ignore
 from src.models.env_data import EnvDataDef
@@ -18,7 +18,7 @@ def load_training_data(data_path: str) -> dict[str, EnvDataDef]:
     env_data_result: dict[str, EnvDataDef] = {}
 
     with open(data_path) as json_file:
-        data_dict = json.load(json_file)
+        data_dict = json5.load(json_file)
 
         assert isinstance(data_dict, dict), "Data to be loaded must be a dictionary of training_name -> env_data"
 
