@@ -1022,7 +1022,7 @@ v21, 22, and 23 all avoid placing stops. 23 starts approaching a valid-ish shape
 
 
 
-## **Version 25** | []()
+## **Version 25** | [e4d0be0](https://github.com/BlieNuckel/RL-metro-map/commit/e4d0be0c6fb6bfd26856c4dfc67227772a0498c7)
 
 Logs folder: RewardFunctions_v25\
 
@@ -1037,7 +1037,7 @@ Further simplified by removing all observations relating to stops being placed a
 ### **Reward Functions**
 |Name|Reward function change|
 |----|---------------|
-|Distance to real stop|Reward lowered from 1 to 0.8 when moving closer to stop, while keeping the punishment for moving away at -1. This should hopefully avoid |
+|Distance to real stop|Reward lowered from 1 to 0.8 when moving closer to stop, while keeping the punishment for moving away at -1. This should hopefully avoid the algorithm being able to farm points by going back and forth.|
 
 ### **Generated Maps**
 ![final generated map](./generated_maps/RewardFunctions_v25_final_model.png)\
@@ -1052,9 +1052,9 @@ v24's best model showed huge promise in terms of building teh map from the real 
 
 
 
-## **Version 26** | []()
+## **Version 26** | [e4d0be0](https://github.com/BlieNuckel/RL-metro-map/commit/e4d0be0c6fb6bfd26856c4dfc67227772a0498c7)
 
-Logs folder: RewardFunctions_v25\
+Logs folder: RewardFunctions_v26\
 
 &nbsp;
 
@@ -1071,3 +1071,27 @@ Removed all maps except the previously used default, as training on multiple map
 
 ### **Issues attempted to fix**
 Identical to v25, just less training maps.
+
+
+
+## **Version 27** | []()
+
+Logs folder: RewardFunctions_v27\
+
+&nbsp;
+
+### **Reward Functions**
+|Name|Reward function change|
+|----|---------------|
+|Distance to real stop|Positive reward for getting closer to stop now lowered based on the distance since the last placed stop, to promote reaching the right spot as fast as possible.|
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v27_final_model.png)\
+*Final generated map at 2 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v27_best_model.png)\
+*Best generated map made throughout training of v27*
+
+
+### **Issues attempted to fix**
+Previous versions ended up walking around in strange ways, likely because it ended up netting them better rewards when moving in special, weird ways.

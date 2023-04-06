@@ -12,17 +12,18 @@ import sys
 
 
 def main() -> None:
-    # angle = angle_between_points(Coordinates2d(140, 7), Coordinates2d(180, 50))
-    # direction = Direction.from_degree(angle)
-    # print(angle, direction)
+    map_id = sys.argv[1]
+
     training_data = load_training_data("./src/data/train_data.json")
+
+    assert map_id in training_data.keys(), "You must enter a valid map id, defined in the train_data.json file"
 
     env = MetroMapEnv(training_data=training_data, render_mode="rgb_array")
     monitor = Monitor(env, reset_keywords=tuple(["options"]))  # type: ignore
 
     terminated = False
     truncated = False
-    obs, info = monitor.reset(options={"env_data_def": "2_lines_wide_format"})
+    obs, info = monitor.reset(options={"env_data_def": map_id})
     reward: SupportsFloat = 0
     steps = 0
 

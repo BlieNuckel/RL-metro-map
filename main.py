@@ -8,8 +8,8 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 
 def main() -> None:
-    version = 26
-    timesteps = 2000000
+    version = 28
+    timesteps = 10000000
     models_dir = f"./generated_models/RewardFunctions_v{version}"
     log_dir = f"./logs/RewardFunctions_v{version}_logs"
 
@@ -17,10 +17,10 @@ def main() -> None:
 
     training_data = load_training_data("./src/data/train_data.json")
 
-    eval_env = MetroMapEnv(training_data=training_data)
+    eval_env = MetroMapEnv(training_data=training_data, max_steps=8000)
     eval_monitor = Monitor(eval_env)  # type: ignore
 
-    env = MetroMapEnv(render_mode="rgb_array", training_data=training_data)
+    env = MetroMapEnv(render_mode="rgb_array", training_data=training_data, max_steps=8000)
     check_env(env)
 
     monitor = Monitor(env)  # type: ignore

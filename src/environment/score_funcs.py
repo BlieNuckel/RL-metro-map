@@ -59,9 +59,9 @@ def stop_placed(distance_to_real_stop: float) -> float:
 #         return C_STOP_RELATIVE_POS * (((math.e / 2) ** (-abs(angle_difference) + 24.75)) - 1)
 
 
-def distance_to_real_stop(distance: float, prev_distance: float, init_distance: float) -> float:
+def distance_to_real_stop(distance: float, prev_distance: float, steps_since_stop: int) -> float:
     if distance < prev_distance:
-        return C_DIST_TO_REAL_STOP * 0.8
+        return C_DIST_TO_REAL_STOP * 1 / (steps_since_stop / 3)
 
     return C_DIST_TO_REAL_STOP * -1
 

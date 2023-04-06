@@ -35,7 +35,7 @@ class MetroMapEnv(gym.Env):
             "num_of_consecutive_overlaps": gym.spaces.Box(0, 2, (1,), dtype=np.uint8),
             # "num_of_turns": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             # "stop_spacing": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
-            # "steps_since_stop": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
+            "steps_since_stop": gym.spaces.Box(0, np.inf, (1,), dtype=np.int16),
             "curr_direction": gym.spaces.Discrete(8),
             "curr_position": gym.spaces.Box(-np.inf, np.inf, (2,), dtype=np.int16),
             "next_stop_distance": gym.spaces.Box(0, np.inf, (1,), dtype=np.float32),
@@ -189,7 +189,7 @@ class MetroMapEnv(gym.Env):
         observations["curr_direction"] = int(self.curr_direction)
         observations["curr_position"] = np.array(self.curr_position.to_tuple(), dtype=np.int16)
         # observations["stop_spacing"] = np.array([self.stop_spacing], dtype=np.int16)
-        # observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
+        observations["steps_since_stop"] = np.array([self.steps_since_stop], dtype=np.int16)
         observations["should_place_stop"] = 1 if self.curr_position.distance_to(self.curr_stop.position) <= 25 else 0
         observations["next_stop_distance"] = np.array(
             [0 if self.curr_stop_index == 0 else self.curr_position.distance_to(self.curr_stop.position)],
@@ -247,7 +247,7 @@ class MetroMapEnv(gym.Env):
         dist_to_real_stop = self.curr_position.distance_to(self.curr_stop.position)
         if not after_stop:
             reward += score_funcs.distance_to_real_stop(
-                dist_to_real_stop, self.curr_stop_prev_distance, self.curr_stop_init_distance
+                dist_to_real_stop, self.curr_stop_prev_distance, self.steps_since_stop
             )
         self.curr_stop_prev_distance = dist_to_real_stop
 
