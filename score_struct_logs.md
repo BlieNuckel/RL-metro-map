@@ -1074,7 +1074,7 @@ Identical to v25, just less training maps.
 
 
 
-## **Version 27** | []()
+## **Version 27** | [37823f4](https://github.com/BlieNuckel/RL-metro-map/commit/37823f4d9167b260b851dfe25fd2d4677c27762e)
 
 Logs folder: RewardFunctions_v27\
 
@@ -1095,3 +1095,25 @@ Logs folder: RewardFunctions_v27\
 
 ### **Issues attempted to fix**
 Previous versions ended up walking around in strange ways, likely because it ended up netting them better rewards when moving in special, weird ways.
+
+
+
+## **Version 28** | [37823f4](https://github.com/BlieNuckel/RL-metro-map/commit/37823f4d9167b260b851dfe25fd2d4677c27762e)
+
+Logs folder: RewardFunctions_v28\
+
+&nbsp;
+
+### **Other Changes**
+Upped the general training time from 2 million steps to 10 million steps. This was to see how it would perform after much longer training periods.
+
+### **Generated Maps**
+![final generated map](./generated_maps/RewardFunctions_v28_final_model.png)\
+*Final generated map at 10 million timesteps.*
+
+![best generated map](./generated_maps/RewardFunctions_v28_best_model.png)\
+*Best generated map made throughout training of v28*
+
+
+### **Issues attempted to fix**
+v27 was very promising, but may need more training time.
